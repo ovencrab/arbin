@@ -2,5 +2,6 @@
 __pycache__/
 *.pyc
 
-# Workspace
+# VS code
 *.code-workspace
+.vscode/
