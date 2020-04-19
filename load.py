@@ -4,65 +4,42 @@ import os
 from pathlib import Path
 import shutil
 import xlrd
+import yaml
 
 ### Debugging ###
 import sys
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
-### Script ###
+### Functions ###
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-def xlsx(data_folder, data_path, cell_info) :
-    # Find length of file list
-    n_cells = len(data_path)
-    df = pd.DataFrame()
-
-    for i in range (n_cells) :
-        
-        # Read in xlsx
-        print("Reading file #",i+1," of ",n_cells,": ",data_path[i])
-        data = pd.read_excel(data_path[i], sheet_name=1)
-        
-        # Output csv
-        output = data_path[i].parent / (data_path[i].stem + '.csv')
-        data.to_csv(output, encoding='utf-8',index = False, header=True)
-        print("Saved file #",i+1," of ",n_cells,": ",output)
-        
-        # Create concatenated dataframe from all cells
-        data.insert(0, 'cell', cell_info['cell'][i])
-        df = df.append(data)
+def yaml(data_folder) :
+    """Takes selected data directory and imports the .yaml cell information as a dictionary
     
-    # Set indexes based on cell number, step index and cycle index
-    df.set_index(['cell', 'Cycle_Index', 'Step_Index'], inplace=True)
-    df.sort_index(inplace=True)
-
-    # Move raw xlsx data to subfolder
-    new_directory = Path(data_folder) / 'raw/'
-    # Create folder if it doesn't already exist
-    if new_directory.exists ():
-        print ("Folder already exists")
-    else:
-        new_directory.mkdir()
-        print ("Created raw folder")
-    # Move xlsx files
-    for i in range (n_cells) :
-        new_loc = new_directory / data_path[i].name
-        # Copy files
-        try:
-            shutil.copy(data_path[i],new_loc)
-            print("Copied file #",i+1," of ",n_cells,": ",new_loc.name)
-            # Remove files if copy was successful
-            try:
-                os.remove(data_path[i])
-                print("Removed old file #",i+1," of ",n_cells,": ",new_loc.name)
-            except OSError as e:  ## if failed, report it back to the user ##
-                print ("Error: %s - %s." % (e.filename, e.strerror))
-        except IOError as e:
-            print("Unable to copy file. %s" % e)
-        
-    return df, n_cells
-
+    Arguments:
+        data_folder {path} -- Selected directory path
+    
+    Returns:
+        dictionary -- Cell information including material, mass, thickness etc.
+    """
+    # List yaml files, open first one (should only be one) and import into dictionary
+    info_path = list(data_folder.glob('*.yaml'))
+    with open(str(info_path[0])) as file :
+        cell_info = yaml.full_load(file)
+    
+    return cell_info
+    
 def csv(data_path, cell_info) :
+    """Takes path to csv files and yaml cell information and returns a multi-index dataframe and # of cells variable.
+    
+    Arguments:
+        data_path {list} -- Strings pointing to selected csv data files
+        cell_info {dictionary} -- Cell information including material, mass, thickness etc.
+    
+    Returns:
+        dataframe -- A multi-index dataframe of arbin cell cycle data (Index: cell number (cell), cycle index (Cycle_Index) and step index (Step_Index)
+        integer -- Number of cells in data set
+    """
     # Find length of file list
     n_cells = len(data_path)
     df = pd.DataFrame()

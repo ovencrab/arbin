@@ -19,10 +19,6 @@ import load
 # Folder or file import
 folder_select = 0
 
-# Excel files need converting - very slow, excel vba conversion recommended
-# (see 'Excel add-in' folder
-convert_excel = 0
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 ### Script ###
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
@@ -43,17 +39,11 @@ if folder_select == 0 :
     data_folder = Path(data_path[0]).parent
 
     # Finds the .yaml file in data_folder and creates a dictionary from the information
-    info_path = list(data_folder.glob('*.yaml'))
-    with open(str(info_path[0])) as file:
-        cell_info = yaml.full_load(file)
+    cell_info = load.yaml(data_folder)
 
     # Create dataframes from xlsx or csv files, and convert xlsx files to csv
     tic = time.perf_counter()
-    if convert_excel == 1 :
-        df, n_cells = load.xlsx(data_folder, data_path, cell_info)
-    else:
-        df, n_cells = load.csv(data_path, cell_info)
-    
+    df, n_cells = load.csv(data_path, cell_info)
     toc = time.perf_counter()
     print(f"Imported files in {toc - tic:0.1f}s")
 else:
@@ -62,19 +52,12 @@ else:
     data_folder = askdirectory(title="Choose data folder")  # "Open" dialog box and return the selected path
 
     # Finds the .yaml file in data_folder and creates a dictionary from the information
-    info_path = list(Path(data_folder).glob('*.yaml'))
-    with open(str(info_path[0])) as file:
-        cell_info = yaml.full_load(file)
+    cell_info = load.yaml(data_folder)
 
+    # Create dataframes from csv files, and convert xlsx files to csv
     tic = time.perf_counter()
-    # Create dataframes from xlsx and csv files, and convert xlsx files to csv
-    if convert_excel == 1:
-        data_path = list(Path(data_folder).glob('*.xlsx'))
-        df, n_cells = load.xlsx(data_folder, data_path, cell_info)
-    else:
-        data_path = list(Path(data_folder).glob('*.csv'))
-        df, n_cells = load.csv(data_path, cell_info)
-    
+    data_path = list(Path(data_folder).glob('*.csv'))
+    df, n_cells = load.csv(data_path, cell_info)
     toc = time.perf_counter()
     print(f"Imported files in {toc - tic:0.1f}s")
 
