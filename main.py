@@ -87,10 +87,19 @@ print(df)
 
 # Find mean current value of each step (i.e. rest, charge, discharge)
 df_grouped = df.groupby(['cell', 'Cycle_Index', 'Step_Index'])['Current(A)'].mean()
+print('Groupby:')
 print(df_grouped.loc[(1)])
 
-# Drop rows of data that aren't a charge or discharge step
-df_grouped_dropped = df_grouped.drop(index=3, level=2)
-print(df_grouped_dropped.loc[(1)])
+# Find indexes which have an average current of 0 and drop them (as they should be the initial rest steps)
+df = df.drop(df_grouped.index[df_grouped == 0].tolist())
+df_avg_zero = df_grouped.drop(df_grouped.index[df_grouped == 0].tolist())
+print('Data after dropping avg current = 0 rows')
+print(df_avg_zero.loc[(1)])
+
+# Find indexes where the current reduces to 0 and drop them (rest steps after charge or discharge)
+df_filt = df_avg_zero.drop(df.index[df['Current(A)'] == 0].tolist())
+df = df.drop(df.index[df['Current(A)'] == 0].tolist())
+print('Index zero current steps:')
+print(df_filt.loc[(1)])
 
 sys.exit()
