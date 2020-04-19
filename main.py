@@ -39,7 +39,7 @@ if folder_select == 0 :
     data_folder = Path(data_path[0]).parent
 
     # Finds the .yaml file in data_folder and creates a dictionary from the information
-    cell_info = load.yaml(data_folder)
+    cell_info = load.yml(data_folder)
 
     # Create dataframes from xlsx or csv files, and convert xlsx files to csv
     tic = time.perf_counter()
@@ -52,7 +52,7 @@ else:
     data_folder = askdirectory(title="Choose data folder")  # "Open" dialog box and return the selected path
 
     # Finds the .yaml file in data_folder and creates a dictionary from the information
-    cell_info = load.yaml(data_folder)
+    cell_info = load.yml(data_folder)
 
     # Create dataframes from csv files, and convert xlsx files to csv
     tic = time.perf_counter()
@@ -69,20 +69,20 @@ print(df)
 # Data filtering
 
 # Find mean current value of each step (i.e. rest, charge, discharge)
-df_grouped = df.groupby(['cell', 'Cycle_Index', 'Step_Index'])['Current(A)'].mean()
+df_grouped = df.groupby(['cell', 'cycle_index', 'step_index'])['current'].mean()
 print('Groupby:')
-print(df_grouped.loc[(1)])
+print(df_grouped.head())
 
 # Find indexes which have an average current of 0 and drop them (as they should be the initial rest steps)
 df = df.drop(df_grouped.index[df_grouped == 0].tolist())
 df_avg_zero = df_grouped.drop(df_grouped.index[df_grouped == 0].tolist())
 print('Data after dropping avg current = 0 rows')
-print(df_avg_zero.loc[(1)])
+print(df_avg_zero.head())
 
 # Find indexes where the current reduces to 0 and drop them (rest steps after charge or discharge)
-df_filt = df_avg_zero.drop(df.index[df['Current(A)'] == 0].tolist())
-df = df.drop(df.index[df['Current(A)'] == 0].tolist())
+df_filt = df_avg_zero.drop(df.index[df['current'] == 0].tolist())
+df = df.drop(df.index[df['current'] == 0].tolist())
 print('Index zero current steps:')
-print(df_filt.loc[(1)])
+print(df_filt.head())
 
 sys.exit()

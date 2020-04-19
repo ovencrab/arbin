@@ -13,7 +13,7 @@ import sys
 ### Functions ###
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-def yaml(data_folder) :
+def yml(data_folder) :
     """Takes selected data directory and imports the .yaml cell information as a dictionary
     
     Arguments:
@@ -54,8 +54,23 @@ def csv(data_path, cell_info) :
         data.insert(0, 'cell', cell_info['cell'][i])
         df = df.append(data)
     
-    # Set indexes based on cell number, step index and cycle index
-    df.set_index(['cell', 'Cycle_Index', 'Step_Index'], inplace=True)
+    # Change column headers to correct format and set indexes based on cell number, step index and cycle index
+    df.columns = ['cell',
+                  'date_time',
+                  'test_time',
+                  'step_time',
+                  'step_index',
+                  'cycle_index',
+                  'voltage',
+                  'current',
+                  'charge_cumulative',
+                  'discharge_cumulative',
+                  'charge_energy',
+                  'discharge_energy',
+                  'ACR',
+                  'int_resistance',
+                  'dv/dt']
+    df.set_index(['cell', 'cycle_index', 'step_index'], inplace=True)
     df.sort_index(inplace=True)
 
     return df, n_cells
