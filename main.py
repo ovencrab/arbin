@@ -75,30 +75,34 @@ else:
     print(f"Imported files in {toc - tic:0.1f}s")
 
 # Print data
+print('--------------------------------------')
 print("Returned data:")
+print('--------------------------------------')
 [print(key, ': ', value) for key, value in cell_info.items()]
-print(df)
+print('Dataframe size: {}'.format(df.size))
 
 #------------------------
 # Data filtering
+print('--------------------------------------')
+print('Data filtering')
+print('--------------------------------------')
 
 # Find mean current value of each step (i.e. rest, charge, discharge)
 df_grouped = df.groupby(['cell', 'cycle_index', 'step_index'])['current'].mean()
-print('Created dataframe of mean current values per step_index.')
-#print(df_grouped.head())
+print('1 - Created dataframe of mean current values per step_index.')
 
 # Find indexes which have an average current of 0 and drop them (as they should be the initial rest steps)
 df = df.drop(df_grouped.index[df_grouped == 0].tolist())
 df_avg_zero = df_grouped.drop(df_grouped.index[df_grouped == 0].tolist())
-print('Dropped \'average current = 0\' rows.')
+print('2 - Dropped \'average current = 0\' rows.')
 #print(df_avg_zero.head())
 
 # Find indexes where the current reduces to 0 and drop them (rest steps after charge or discharge)
 df_filt = df_avg_zero.drop(df.index[df['current'] == 0].tolist())
 df = df.drop(df.index[df['current'] == 0].tolist())
-print('Dropped rows that have \'current = 0\' in any row.')
-#print(df_filt.head())
+print('3 - Dropped rows that have \'current = 0\' in any row.')
 
+# Create column with 'pos' and 'neg' labels based on current and make into index
 df.set_index('test_time', append = True, inplace = True)
 
 df['new_index'] = ''
@@ -107,49 +111,76 @@ for i in df_filt.index.values :
         df.loc[i, 'new_index'] = 'pos'
     else :
         df.loc[i, 'new_index'] = 'neg'
-        
+
 df.reset_index(inplace=True)
 df.drop(columns='step_index', inplace=True)
 df.set_index(['cell', 'cycle_index', 'new_index', 'date_time'], inplace=True)
 df.index.names = ['cell', 'cycle_index', 'step_index', 'date_time']
-#df.sort_index(inplace=True)
 df.index.sortlevel(level='date_time')
 
-print(df)
+print('4 - Created new index')
+
+# downsampling
+
+#------------------------
+# Downsampling
+
+print('--------------------------------------')
+print('Downsampling data')
+print('--------------------------------------')
+
+df_plot = df[['test_time','voltage']]
+
+df_plot.reset_index(level='date_time', inplace=True)
+df_plot.sort_index()
+my_index = pd.MultiIndex(levels=[[0],[1],[2]], codes=[[],[],[]], names=['cell','cycle_index','step_index'])
+df_downsampled = pd.DataFrame(columns=df_plot.columns, index=my_index)
+
+L0_start = df_plot.index.get_level_values(0)[1]
+L0_end = df_plot.index.get_level_values(0)[-1]
+L1_start = df_plot.index.get_level_values(1)[1]
+L2_start = df_plot.index.get_level_values(2)[1]
+
+counter = 1
+for i in df_plot.index.unique() :
+    df_temp = df_plot.loc[i]
+
+    if len(df_temp) > 1000 :
+        downsampler = floor(len(df_temp)/500)
+        df_downsampled = df_downsampled.append(df_temp.iloc[::downsampler])
+
+        if df_downsampled['voltage'].iloc[-1] != df_temp['voltage'].iloc[-1] :
+            df_downsampled = df_downsampled.append(df_temp.iloc[-1])
+
+        if L0_start <= i[0] <= L0_end and i[1] == L1_start and i[2] == L2_start :
+            print('{} - Downsampled {}...'.format(counter, i))
+            counter = counter + 1
+
+    else :
+        df_downsampled = df_downsampled.append(df_temp.iloc[::downsampler])
+
+        if L0_start <= i[0] <= L0_end and i[1] == L1_start and i[2] == L2_start :
+            print('{} - Left {}...'.format(counter, i))
+            counter = counter + 1
+
+df_downsampled.set_index('date_time', append=True, inplace=True)
+df_downsampled.index.sortlevel(level='date_time')
+
+print('{} - Reduced number of rows from {} to {}'.format(counter, df.shape[0], df_downsampled.shape[0]))
 
 #------------------------
 # Plotting test
 
 print('--------------------------------------')
 print('Plot data')
-#df_one_step = df.loc[(1, 1):(1,last_cycle), 'test_time', 'voltage']
-df_plot = df.xs(1, level='cell')[['test_time','voltage']]
-#df_plot = df_plot[['test_time','voltage']]
+print('--------------------------------------')
 
-df_plot.reset_index(level='date_time', inplace=True)
-df_plot_sampled = pd.DataFrame(columns=df_plot.columns, index=df_plot.index)
-df_plot.sort_index()
-print(len(df_plot.index))
+df_slice = df_downsampled.loc[(1, 1)]
 
-for i in df_plot.index.unique() :
-    df_temp = df_plot.loc[i]
-    if len(df_temp) > 2000 :
-        downsampler = floor(len(df_temp)/1000)
-        df_plot_sampled.append(df_temp.iloc[::downsampler])
-        print('Downsampled {}'.format(i))
-    else :
-        print('Left {}'.format(i))
-    #df_plot_sampled.append(df_temp.iloc[-1])
-    
-print(df_plot_sampled)
-
-sys.exit()
-
-df_plot_sampled.set_index('date_time', append=True, inplace=True)
-df_plot_sampled.index.sortlevel(level='date_time')
-
-g = sns.relplot(x="test_time", y="voltage", kind="line", data=df_plot_sampled)
+g = sns.relplot(x="test_time", y="voltage", kind="line", data=df_slice)
 g.fig.autofmt_xdate()
 plt.show()
+
+print('Plotted')
 
 sys.exit()
