@@ -87,6 +87,8 @@ print('--------------------------------------')
 print('Data filtering')
 print('--------------------------------------')
 
+tic = time.perf_counter()
+
 # Find mean current value of each step (i.e. rest, charge, discharge)
 df_grouped = df.groupby(['cell', 'cycle_index', 'step_index'])['current'].mean()
 print('1 - Created dataframe of mean current values per step_index.')
@@ -101,8 +103,6 @@ print('2 - Dropped \'average current = 0\' rows.')
 df_filt = df_avg_zero.drop(df.index[df['current'] == 0].tolist())
 df = df.drop(df.index[df['current'] == 0].tolist())
 print('3 - Dropped indexes that have \'current = 0\' in any row.')
-
-tic = time.perf_counter()
 
 df_grouped = df.groupby(['cell', 'cycle_index', 'step_index'])['current'].mean()
 
@@ -123,6 +123,8 @@ print(f"4 - Created new index in {toc - tic:0.1f}s")
 print('--------------------------------------')
 print('Downsampling data')
 print('--------------------------------------')
+
+tic = time.perf_counter()
 
 df_plot = df[['test_time','voltage']]
 
@@ -161,7 +163,9 @@ for i in df_plot.index.unique() :
 df_downsampled.set_index('date_time', append=True, inplace=True)
 df_downsampled.index.sortlevel(level='date_time')
 
-print('{} - Reduced number of rows from {} to {}'.format(counter, df.shape[0], df_downsampled.shape[0]))
+toc = time.perf_counter()
+t = f'{toc - tic:0.1f}'
+print('{} - Reduced number of rows from {} to {} in {}s'.format(counter, df.shape[0], df_downsampled.shape[0],t))
 
 #------------------------
 # Plotting test
