@@ -100,27 +100,22 @@ print('2 - Dropped \'average current = 0\' rows.')
 # Find indexes where the current reduces to 0 and drop them (rest steps after charge or discharge)
 df_filt = df_avg_zero.drop(df.index[df['current'] == 0].tolist())
 df = df.drop(df.index[df['current'] == 0].tolist())
-print('3 - Dropped rows that have \'current = 0\' in any row.')
+print('3 - Dropped indexes that have \'current = 0\' in any row.')
 
-# Create column with 'pos' and 'neg' labels based on current and make into index
-df.set_index('test_time', append = True, inplace = True)
+tic = time.perf_counter()
 
-df['new_index'] = ''
-for i in df_filt.index.values :
-    if df.loc[i, 'current'].mean() > 0 :
-        df.loc[i, 'new_index'] = 'pos'
-    else :
-        df.loc[i, 'new_index'] = 'neg'
+df_grouped = df.groupby(['cell', 'cycle_index', 'step_index'])['current'].mean()
 
-df.reset_index(inplace=True)
-df.drop(columns='step_index', inplace=True)
-df.set_index(['cell', 'cycle_index', 'new_index', 'date_time'], inplace=True)
+df.loc[df_grouped.index[df_grouped > 0].tolist(), 'new_index'] = 'pos'
+df.loc[df_grouped.index[df_grouped < 0].tolist(), 'new_index'] = 'neg'
+
+df.reset_index(level='step_index',inplace=True,drop=True)
+df.set_index(['new_index', 'date_time'], inplace=True, append=True)
 df.index.names = ['cell', 'cycle_index', 'step_index', 'date_time']
 df.index.sortlevel(level='date_time')
 
-print('4 - Created new index')
-
-# downsampling
+toc = time.perf_counter()
+print(f"4 - Created new index in {toc - tic:0.1f}s")
 
 #------------------------
 # Downsampling
