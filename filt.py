@@ -14,17 +14,26 @@ import sys
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
 def index(df):
+    print(df)
     # Find mean current value of each step (i.e. rest, charge, discharge)
     df_grouped = df.groupby(['cell', 'cycle_index', 'step_index'])['current'].mean()
     print('1 - Created dataframe of mean current values per step_index.')
 
     # Find indexes which have an average current of 0 and drop them (as they should be the initial rest steps)
-    df = df.drop(df_grouped.index[df_grouped == 0].tolist())
-    print('2 - Dropped \'average current = 0\' rows.')
+    mean_zero_list = df_grouped.index[df_grouped == 0].tolist()
+    if mean_zero_list :
+        df = df.drop(df_grouped.index[df_grouped == 0].tolist())
+        print('2 - Dropped \'average current = 0\' rows.')
+    else :
+        print('2 - No initial rest step detected.')
 
     # Find indexes where the current reduces to 0 and drop them (rest steps after charge or discharge)
-    df = df.drop(df.index[df['current'] == 0].tolist())
-    print('3 - Dropped indexes that have \'current = 0\' in any row.')
+    any_zero_list = df.index[df['current'] == 0].tolist()
+    if any_zero_list :
+        df = df.drop(df.index[df['current'] == 0].tolist())
+        print('3 - Dropped indexes that have \'current = 0\' in any row.')
+    else :
+        print('3 - No indexes that have \'current = 0\' in any row detected.')
 
     # Group new data by the mean of each step_index and assign 'pos' or 'neg' labels to the new column 'new_index'
     df_grouped = df.groupby(['cell', 'cycle_index', 'step_index'])['current'].mean()
@@ -35,7 +44,7 @@ def index(df):
     df.reset_index(level='step_index',inplace=True,drop=True)
     df.set_index(['new_index', 'date_time'], inplace=True, append=True)
     df.index.names = ['cell', 'cycle_index', 'step_index', 'date_time']
-    df.index.sortlevel(level='date_time')
+    df.sort_index(inplace=True)
 
     return df
 
@@ -43,7 +52,7 @@ def downsample(df):
     df_plot = df
 
     df_plot.reset_index(level='date_time', inplace=True)
-    df_plot.sort_index()
+    df_plot.sort_index(inplace=True)
     my_index = pd.MultiIndex(levels=[[0],[1],[2]], codes=[[],[],[]], names=['cell','cycle_index','step_index'])
     df_downsampled = pd.DataFrame(columns=df_plot.columns, index=my_index)
 
@@ -75,6 +84,6 @@ def downsample(df):
                 counter = counter + 1
 
     df_downsampled.set_index('date_time', append=True, inplace=True)
-    df_downsampled.index.sortlevel(level='date_time')
+    df_downsampled.sort_index(inplace=True)
 
     return df_downsampled, counter

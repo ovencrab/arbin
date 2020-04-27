@@ -47,7 +47,7 @@ def csv(data_path, cell_info) :
 
         # Read in csv
         print("Reading file #",i+1," of ",n_cells,": ",data_path[i])
-        data = pd.read_csv(data_path[i])
+        data = pd.read_csv(data_path[i]) # Perhaps add dtypes to improve peformance
 
         # Create concatenated dataframe from all cells
         data.insert(0, 'cell', cell_info['cell'][i])

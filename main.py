@@ -117,7 +117,7 @@ print('--------------------------------------')
 print('Plot data')
 print('--------------------------------------')
 
-df_slice = df_downsampled.loc[(1, 1)]
+df_slice = df_downsampled.loc[(1, 11)]
 
 g = sns.relplot(x="test_time", y="voltage", kind="line", data=df_slice)
 g.fig.autofmt_xdate()
