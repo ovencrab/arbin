@@ -19,10 +19,7 @@ import plotly
 # Cufflinks wrapper on plotly
 import cufflinks as cf
 
-# Display all cell outputs
-from IPython.core.interactiveshell import InteractiveShell
-InteractiveShell.ast_node_interactivity = 'all'
-
+# Offline mode
 from plotly.offline import iplot
 cf.go_offline()
 
@@ -36,11 +33,19 @@ import sys
 ### Import functions ###
 import load
 import filt
+import plot_data
 
 ### Options ###
 
 # Folder or file import
 folder_select = 0
+
+# Plot config
+user_cell = 1
+user_cycle = 0
+user_x = 'test_time'
+user_y = 'voltage'
+user_y2 = 'current'
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 ### Script ###
@@ -127,30 +132,13 @@ print('--------------------------------------')
 print('Plot data')
 print('--------------------------------------')
 
-user_cell = 1
-user_cycle = 0
-user_x = 'test_time'
-user_y = 'voltage'
-user_y2 = 'current'
-
-if user_cycle > 0 :
-    df_slice = df_downsampled.loc[(user_cell, user_cycle)]
-elif user_cycle == 0 :
-    df_slice = df_downsampled.loc[user_cell]
-
-fig = df_slice.iplot(
-    asFigure=True,
-    x=user_x,
-    y=user_y,
-    title='Cell {} - Cycle {}'.format(user_cell, user_cycle),
-    xTitle="Test time (s)",
-    yTitle="Voltage (V)",
-    secondary_y=user_y2,
-    secondary_y_title="Current (A)"
-)
+fig = plot_data.profile(df_downsampled, user_cell, user_cycle, user_x, user_y, user_y2)
 
 fig.show()
 
 print('Plotted')
+
+#------------------------
+# End
 
 sys.exit()

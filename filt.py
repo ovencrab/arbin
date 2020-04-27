@@ -22,7 +22,8 @@ def index(df):
 
     Returns:
         dataframe -- dataframe with new index
-    """    
+    """
+
     # Find mean current value of each step (i.e. rest, charge, discharge)
     df_grouped = df.groupby(['cell', 'cycle_index', 'step_index'])['current'].mean()
     print('1 - Created dataframe of mean current values per step_index.')
