@@ -14,7 +14,15 @@ import sys
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
 def index(df):
-    print(df)
+    """Removes rest steps from data, changes step_index to 'pos' and 'neg' current labels and
+       creates a multi-index based on cell, cycle_index, step_index and date_time
+
+    Arguments:
+        df {dataframe} -- raw dataframe imported from csv files
+
+    Returns:
+        dataframe -- dataframe with new index
+    """    
     # Find mean current value of each step (i.e. rest, charge, discharge)
     df_grouped = df.groupby(['cell', 'cycle_index', 'step_index'])['current'].mean()
     print('1 - Created dataframe of mean current values per step_index.')
