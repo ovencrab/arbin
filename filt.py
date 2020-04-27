@@ -38,7 +38,7 @@ def index(df):
     # Find indexes where the current reduces to 0 and drop them (rest steps after charge or discharge)
     any_zero_list = df.index[df['current'] == 0].tolist()
     if any_zero_list :
-        df = df.drop(df.index[df['current'] == 0].tolist())
+        df.loc[df.index[df['current'] == 0].tolist(), 'new_index'] = 'rest'
         print('3 - Dropped indexes that have \'current = 0\' in any row.')
     else :
         print('3 - No indexes that have \'current = 0\' in any row detected.')
@@ -91,7 +91,11 @@ def downsample(df):
                 print('{} - Left {}...'.format(counter, i))
                 counter = counter + 1
 
-    df_downsampled.set_index('date_time', append=True, inplace=True)
+    df_downsampled.reset_index(inplace=True)
+    df_downsampled.set_index(['cell','cycle_index', 'date_time','step_index'], inplace=True)
     df_downsampled.sort_index(inplace=True)
+
+    #df_downsampled.set_index('date_time', append=True, inplace=True)
+    #df_downsampled.sort_index(inplace=True)
 
     return df_downsampled, counter

@@ -9,15 +9,25 @@ import shutil
 
 ### Plotting ###
 
-import matplotlib
-import cufflinks as cf #conda install -c conda-forge cufflinks-py
-import plotly
-import plotly.offline as py
-import plotly.graph_objs as go
-
 import matplotlib.pyplot as plt
 import seaborn as sns
 sns.set(style="darkgrid")
+
+# plotly standard imports
+import plotly
+
+# Cufflinks wrapper on plotly
+import cufflinks as cf
+
+# Display all cell outputs
+from IPython.core.interactiveshell import InteractiveShell
+InteractiveShell.ast_node_interactivity = 'all'
+
+from plotly.offline import iplot
+cf.go_offline()
+
+# Set global theme
+cf.set_config_file(world_readable=True, theme='pearl')
 
 ### Debugging ###
 import time
@@ -117,11 +127,29 @@ print('--------------------------------------')
 print('Plot data')
 print('--------------------------------------')
 
-df_slice = df_downsampled.loc[(1, 11)]
+user_cell = 1
+user_cycle = 0
+user_x = 'test_time'
+user_y = 'voltage'
+user_y2 = 'current'
 
-g = sns.relplot(x="test_time", y="voltage", kind="line", data=df_slice)
-g.fig.autofmt_xdate()
-plt.show()
+if user_cycle > 0 :
+    df_slice = df_downsampled.loc[(user_cell, user_cycle)]
+elif user_cycle == 0 :
+    df_slice = df_downsampled.loc[user_cell]
+
+fig = df_slice.iplot(
+    asFigure=True,
+    x=user_x,
+    y=user_y,
+    title='Cell {} - Cycle {}'.format(user_cell, user_cycle),
+    xTitle="Test time (s)",
+    yTitle="Voltage (V)",
+    secondary_y=user_y2,
+    secondary_y_title="Current (A)"
+)
+
+fig.show()
 
 print('Plotted')
 
