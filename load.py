@@ -28,8 +28,8 @@ def yml(data_folder) :
 
     return cell_info
 
-def csv(data_path, cell_info) :
-    """Takes path to csv files and yaml cell information and returns a multi-index dataframe and # of cells variable.
+def csv_raw(data_paths, cell_info) :
+    """Takes path to csv files and returns a multi-index dataframe and # of cells variable.
 
     Arguments:
         data_path {list} -- Strings pointing to selected csv data files
@@ -40,14 +40,14 @@ def csv(data_path, cell_info) :
         integer -- Number of cells in data set
     """
     # Find length of file list
-    n_cells = len(data_path)
+    n_cells = len(data_paths)
     df = pd.DataFrame()
 
     for i in range (n_cells) :
 
         # Read in csv
-        print("Reading file #",i+1," of ",n_cells,": ",data_path[i])
-        data = pd.read_csv(data_path[i]) # Perhaps add dtypes to improve peformance
+        print("Reading file #",i+1," of ",n_cells,": ",data_paths[i])
+        data = pd.read_csv(data_paths[i]) # Perhaps add dtypes to improve peformance
 
         # Create concatenated dataframe from all cells
         data.insert(0, 'cell', cell_info['cell'][i])
@@ -70,6 +70,35 @@ def csv(data_path, cell_info) :
                   'int_resistance',
                   'dv/dt']
     df.set_index(['cell', 'cycle_index', 'step_index'], inplace=True)
+    df.sort_index(inplace=True)
+
+    return df, n_cells
+
+def csv_processed(data_paths, cell_info) :
+    """Takes path to indexed or decimated csv files and returns a multi-index dataframe and # of cells variable.
+
+    Arguments:
+        data_path {list} -- Strings pointing to selected csv data files
+        cell_info {dictionary} -- Cell information including material, mass, thickness etc.
+
+    Returns:
+        dataframe -- A multi-index dataframe of arbin cell cycle data (Index: cell number (cell), cycle index (Cycle_Index) and step index (Step_Index)
+        integer -- Number of cells in data set
+    """
+    # Find length of file list
+    n_cells = len(data_paths)
+    df = pd.DataFrame()
+
+    for i in range (n_cells) :
+
+        # Read in csv
+        print("Reading file #",i+1," of ",n_cells,": ",data_paths[i])
+        data = pd.read_csv(data_paths[i]) # Perhaps add dtypes to improve peformance
+
+        # Create concatenated dataframe from all cells
+        df = df.append(data)
+
+    df.set_index(['cell', 'cycle_index', 'date_time', 'step_index'], inplace=True)
     df.sort_index(inplace=True)
 
     return df, n_cells

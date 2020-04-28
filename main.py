@@ -4,29 +4,8 @@ from tkinter.filedialog import askopenfilenames, askdirectory
 from pathlib import Path
 import yaml
 import pandas as pd
-import os
-import shutil
 
-### Plotting ###
-
-import matplotlib.pyplot as plt
-import seaborn as sns
-sns.set(style="darkgrid")
-
-# plotly standard imports
-import plotly
-
-# Cufflinks wrapper on plotly
-import cufflinks as cf
-
-# Offline mode
-from plotly.offline import iplot
-cf.go_offline()
-
-# Set global theme
-cf.set_config_file(world_readable=True, theme='pearl')
-
-### Debugging ###
+### Import debugging ###
 import time
 import sys
 
@@ -40,9 +19,17 @@ import plot_data
 # Folder or file import
 folder_select = 0
 
+# Data processing
+user_decimate = 0
+row_target = 500
+
+# Outputs
+save_indexed = 1
+save_decimated = 0
+
 # Plot config
 user_cell = 1
-user_cycle = 0
+user_cycle = 0 # 0 plots all cycles
 user_x = 'test_time'
 user_y = 'voltage'
 user_y2 = 'current'
@@ -55,39 +42,58 @@ user_y2 = 'current'
 if folder_select == 0 :
 
     # Open dialog box to select files
-    #Tk().withdraw()
-    #filez = askopenfilenames(title='Choose a file',
-    #                         filetypes=((".csv files", "*.csv"),("Excel files", "*.xlsx *.xls"), ("All files", "*.*")))
+    # Tk().withdraw()
+    # filez = askopenfilenames(title='Choose a file', filetypes=(('.csv files', '*.csv'),))
 
     # Create list of files and extract folder path from first file path
-    #data_path = list(filez)
-    data_path = [Path.home() / 'OneDrive - Nexus365/Oxford/0 Post doc/02 Data/Arbin/001 Test data/JE_LtS_rate_B1_12_Channel_12.csv',
-                 Path.home() / 'OneDrive - Nexus365/Oxford/0 Post doc/02 Data/Arbin/001 Test data/JE_LtS_rate_B2_13_Channel_13.csv',
-                 Path.home() / 'OneDrive - Nexus365/Oxford/0 Post doc/02 Data/Arbin/001 Test data/JE_LtS_rate_B3_14_Channel_14.csv']
-    data_folder = Path(data_path[0]).parent
-
-    # Finds the .yaml file in data_folder and creates a dictionary from the information
-    cell_info = load.yml(data_folder)
-
-    # Create dataframes from xlsx or csv files, and convert xlsx files to csv
-    tic = time.perf_counter()
-    df, n_cells = load.csv(data_path, cell_info)
-    toc = time.perf_counter()
-    print(f"Imported files in {toc - tic:0.1f}s")
+    # filez = list(filez)
+    # data_paths = [Path(data_path) for data_path in filez]
+    # data_folder = Path(data_paths[0]).parent
+    t_str = 'decimated'
+    data_paths = [Path.home() / 'OneDrive - Nexus365/Oxford/0 Post doc/02 Data/Arbin/001 Test data/{}/JE_LtS_rate_B1_12_Channel_12_{}_1.csv'.format(t_str, t_str),
+                 Path.home() / 'OneDrive - Nexus365/Oxford/0 Post doc/02 Data/Arbin/001 Test data/{}/JE_LtS_rate_B2_13_Channel_13_{}_2.csv'.format(t_str, t_str),
+                 Path.home() / 'OneDrive - Nexus365/Oxford/0 Post doc/02 Data/Arbin/001 Test data/{}/JE_LtS_rate_B3_14_Channel_14_{}_3.csv'.format(t_str, t_str)]
+    data_folder = Path(data_paths[0]).parent
 else:
     # Open dialog box to select folder
     Tk().withdraw()  # stops root window from appearing
     data_folder = askdirectory(title="Choose data folder")  # "Open" dialog box and return the selected path
+    data_paths = list(Path(data_folder).glob('*.csv'))
 
-    # Finds the .yaml file in data_folder and creates a dictionary from the information
+# Finds the .yaml file in data_folder and creates a dictionary from the information
+try :
     cell_info = load.yml(data_folder)
+except :
+    try :
+        cell_info = load.yml(data_folder.parent)
+    except :
+        raise Exception("Can't find *.yaml information file")
 
-    # Create dataframes from csv files, and convert xlsx files to csv
-    tic = time.perf_counter()
-    data_path = list(Path(data_folder).glob('*.csv'))
-    df, n_cells = load.csv(data_path, cell_info)
-    toc = time.perf_counter()
-    print(f"Imported files in {toc - tic:0.1f}s")
+# Checks for decimated or previously indexed data
+str_check = [data_path.as_posix() for data_path in data_paths]
+
+deci_check = []
+index_check = []
+for i, data_name in enumerate(str_check) :
+    deci_check.append('decimated' in data_name)
+    index_check.append('indexed' in data_name)
+
+# Load csv data
+tic = time.perf_counter()
+if not any(deci_check) and not any(index_check) :
+    df, n_cells = load.csv_raw(data_paths, cell_info)
+    decimated = 0
+    filtered = 0
+elif any(deci_check) :
+    df, n_cells = load.csv_processed(data_paths, cell_info)
+    decimated = 1
+elif any(index_check) :
+    df, n_cells = load.csv_processed(data_paths, cell_info)
+    decimated = 0
+    filtered = 1
+
+toc = time.perf_counter()
+print(f"Imported files in {toc - tic:0.1f}s")
 
 # Print data
 print('--------------------------------------')
@@ -99,31 +105,35 @@ print('Dataframe size: {}'.format(df.size))
 #------------------------
 # Data filtering
 
-print('--------------------------------------')
-print('Data filtering')
-print('--------------------------------------')
+if decimated == 0 :
+    if filtered == 0 :
+        print('--------------------------------------')
+        print('Data filtering')
+        print('--------------------------------------')
 
-tic = time.perf_counter()
+        tic = time.perf_counter()
 
-df = filt.index(df)
+        df = filt.index(df, data_paths, data_folder, save_indexed)
 
-toc = time.perf_counter()
-print(f"4 - Created new index in {toc - tic:0.1f}s")
+        toc = time.perf_counter()
+        print(f"4 - Created new index in {toc - tic:0.1f}s")
 
-#------------------------
-# Downsampling
+    #------------------------
+    # Downsampling
 
-print('--------------------------------------')
-print('Downsampling data')
-print('--------------------------------------')
+    if user_decimate == 1:
+        print('--------------------------------------')
+        print('Decimating data')
+        print('--------------------------------------')
 
-tic = time.perf_counter()
+        tic = time.perf_counter()
 
-df_downsampled, counter = filt.downsample(df)
+        df_decimate, counter = filt.decimate(df, row_target, data_paths, data_folder, save_decimated)
 
-toc = time.perf_counter()
-t = f'{toc - tic:0.1f}'
-print('{} - Reduced number of rows from {} to {} in {}s'.format(counter, df.shape[0], df_downsampled.shape[0],t))
+        toc = time.perf_counter()
+        t = f'{toc - tic:0.1f}'
+        print('{} - Reduced number of rows from {} to {} in {}s'.format(counter, df.shape[0], df_decimate.shape[0],t))
+        df = df_decimate
 
 #------------------------
 # Plotting test
@@ -132,11 +142,14 @@ print('--------------------------------------')
 print('Plot data')
 print('--------------------------------------')
 
-fig = plot_data.profile(df_downsampled, user_cell, user_cycle, user_x, user_y, user_y2)
+tic = time.perf_counter()
+
+fig = plot_data.profile(df, user_cell, user_cycle, user_x, user_y, user_y2)
 
 fig.show()
 
-print('Plotted')
+toc = time.perf_counter()
+print(f"Plot generated in {toc - tic:0.1f}s")
 
 #------------------------
 # End

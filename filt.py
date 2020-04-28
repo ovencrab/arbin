@@ -1,8 +1,6 @@
 ### Import packages ###
 import pandas as pd
-import os
 from pathlib import Path
-import shutil
 import yaml
 from math import floor
 
@@ -13,17 +11,43 @@ import sys
 ### Functions ###
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-def index(df):
+def save(df, filt_string, data_paths, data_folder) :
+    """Saves dataframe to a csv file per cell number
+
+    Arguments:
+        df {dataframe} -- dataframe to be saved
+        filt_string {str} -- str to name folder and append to processed filenames
+        data_paths {list} -- list of path objects to csv files
+        data_folder {path obj} -- path object to data folder
+
+    Returns:
+        Exception error messages
+    """
+    try :
+        if not data_folder.joinpath(filt_string).is_dir() :
+                data_folder.joinpath(filt_string).mkdir(parents=True, exist_ok=True)
+        try :
+            for i, data in enumerate(df.groupby(level='cell')):
+                data[1].to_csv(data_folder.joinpath(filt_string,'{}_{}_{}.csv'.format(data_paths[i].stem, filt_string, i+1)), encoding='utf-8')
+        except :
+            return print("Couldn't overwrite {} csv files".format(filt_string))
+    except :
+        return print("Couldn't create {} folder".format(filt_string))
+
+
+def index(df, data_paths, data_folder, save_indexed) :
     """Removes rest steps from data, changes step_index to 'pos' and 'neg' current labels and
        creates a multi-index based on cell, cycle_index, step_index and date_time
 
     Arguments:
         df {dataframe} -- raw dataframe imported from csv files
+        data_paths {list} -- list of path objects to csv files
+        data_folder {path obj} -- path object to data folder
+        save_indexed {int} -- if == 1, save decimated df, if == 0 don't
 
     Returns:
         dataframe -- dataframe with new index
     """
-
     # Find mean current value of each step (i.e. rest, charge, discharge)
     df_grouped = df.groupby(['cell', 'cycle_index', 'step_index'])['current'].mean()
     print('1 - Created dataframe of mean current values per step_index.')
@@ -36,7 +60,7 @@ def index(df):
     else :
         print('2 - No initial rest step detected.')
 
-    # Find indexes where the current reduces to 0 and drop them (rest steps after charge or discharge)
+    # Find indexes where the current reduces to 0 label them as 'rest' steps (probably need some extra checks here)
     any_zero_list = df.index[df['current'] == 0].tolist()
     if any_zero_list :
         df.loc[df.index[df['current'] == 0].tolist(), 'new_index'] = 'rest'
@@ -44,59 +68,79 @@ def index(df):
     else :
         print('3 - No indexes that have \'current = 0\' in any row detected.')
 
-    # Group new data by the mean of each step_index and assign 'pos' or 'neg' labels to the new column 'new_index'
+    # Group filtered data by the mean of each step_index and assign 'pos' or 'neg' labels to the new column 'new_index'
     df_grouped = df.groupby(['cell', 'cycle_index', 'step_index'])['current'].mean()
     df.loc[df_grouped.index[df_grouped > 0].tolist(), 'new_index'] = 'pos'
     df.loc[df_grouped.index[df_grouped < 0].tolist(), 'new_index'] = 'neg'
 
-    # Remove old step_index and reindex with 'new_index' and 'date_time'
+    # Remove old step_index from df and reindex with 'new_index'
     df.reset_index(level='step_index',inplace=True,drop=True)
-    df.set_index(['new_index', 'date_time'], inplace=True, append=True)
-    df.index.names = ['cell', 'cycle_index', 'step_index', 'date_time']
+    df.set_index(['date_time', 'new_index'], inplace=True, append=True)
+    df.index.names = ['cell', 'cycle_index', 'date_time', 'step_index']
     df.sort_index(inplace=True)
+
+    if save_indexed == 1 :
+        save(df, 'indexed', data_paths, data_folder)
 
     return df
 
-def downsample(df):
+
+def decimate(df, row_target, data_paths, data_folder, save_decimated):
+    """Removes rows of data according to the floored ratio between row_target and the step length
+
+    Arguments:
+        df {dataframe} -- raw dataframe imported from csv files
+        row_target {int} -- target number of rows left after decimation
+        data_paths {list} -- list of path objects to csv files
+        data_folder {path obj} -- path object to data folder
+        save_decimated {int} -- if == 1, save decimated df, if == 0 don't
+
+    Returns:
+        dataframe -- dataframe with new index
+    """
     df_plot = df
-
-    df_plot.reset_index(level='date_time', inplace=True)
+    df_plot.reset_index('date_time', inplace=True)
     df_plot.sort_index(inplace=True)
-    my_index = pd.MultiIndex(levels=[[0],[1],[2]], codes=[[],[],[]], names=['cell','cycle_index','step_index'])
-    df_downsampled = pd.DataFrame(columns=df_plot.columns, index=my_index)
 
+    # Create empty dataframe to store downsampled df
+    my_index = pd.MultiIndex(levels=[[0],[1],[2]], codes=[[],[],[]], names=['cell','cycle_index','step_index'])
+    df_decimate = pd.DataFrame(columns=df_plot.columns, index=my_index)
+
+    # Find start and end of cell index, and the start of both cycle_index and step_index
     L0_start = df_plot.index.get_level_values(0)[1]
     L0_end = df_plot.index.get_level_values(0)[-1]
     L1_start = df_plot.index.get_level_values(1)[1]
     L2_start = df_plot.index.get_level_values(2)[1]
 
+    # Loop over unique indexes and reduce any step_index to 500 rows if above 1000 rows.
     counter = 1
     for i in df_plot.index.unique() :
         df_temp = df_plot.loc[i]
 
-        if len(df_temp) > 1000 :
-            downsampler = floor(len(df_temp)/500)
-            df_downsampled = df_downsampled.append(df_temp.iloc[::downsampler])
+        if len(df_temp) >= row_target*2 :
+            downsampler = floor(len(df_temp)/row_target)
+            df_decimate = df_decimate.append(df_temp.iloc[::downsampler])
 
-            if df_downsampled['voltage'].iloc[-1] != df_temp['voltage'].iloc[-1] :
-                df_downsampled = df_downsampled.append(df_temp.iloc[-1])
+            if df_decimate['voltage'].iloc[-1] != df_temp['voltage'].iloc[-1] :
+                df_decimate = df_decimate.append(df_temp.iloc[-1])
 
             if L0_start <= i[0] <= L0_end and i[1] == L1_start and i[2] == L2_start :
-                print('{} - Downsampled {}...'.format(counter, i))
+                print('{} - Decimated cell {}...'.format(counter, i[0]))
                 counter = counter + 1
 
         else :
-            df_downsampled = df_downsampled.append(df_temp.iloc[::downsampler])
+            df_decimate = df_decimate.append(df_temp.iloc[::downsampler])
 
             if L0_start <= i[0] <= L0_end and i[1] == L1_start and i[2] == L2_start :
                 print('{} - Left {}...'.format(counter, i))
                 counter = counter + 1
 
-    df_downsampled.reset_index(inplace=True)
-    df_downsampled.set_index(['cell','cycle_index', 'date_time','step_index'], inplace=True)
-    df_downsampled.sort_index(inplace=True)
+    df_decimate.reset_index(inplace=True)
+    df_decimate.set_index(['cell','cycle_index', 'date_time','step_index'], inplace=True)
+    df_decimate.sort_index(inplace=True)
 
-    #df_downsampled.set_index('date_time', append=True, inplace=True)
-    #df_downsampled.sort_index(inplace=True)
+    # Save decimated data to csv files in */decimated folder
+    if save_decimated == 1 :
+        save(df, 'decimated', data_paths, data_folder)
 
-    return df_downsampled, counter
+    return df_decimate, counter
