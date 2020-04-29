@@ -1,0 +1,104 @@
+'SaveAsCsv version 1.00
+'User selects a folder containing xls or xlsx files which are then saved as csv files
+'Multiple data sheets are concatenated into a single sheet which is then saved as a csv
+'First sheet is always ignored due to arbin xlsx file format
+
+Sub SaveAsCsv()
+Dim wb As Workbook
+Dim sh As Worksheet
+Dim myPath As String
+Dim myFile As String
+Dim myExtension As String
+Dim FldrPicker As FileDialog
+Dim intS, DoIt As Integer
+Dim strUL As String
+Dim boolHeader As Boolean
+Dim sh_data As Integer
+
+'set boolHeader to True if all sheets have the same header row
+'set boolHeader to false if none of the sheets have a header row
+  boolHeader = True
+
+'Optimize Macro Speed
+  Application.ScreenUpdating = False
+  Application.EnableEvents = False
+  Application.Calculation = xlCalculationManual
+
+'Retrieve Target Folder Path From User
+  Set FldrPicker = Application.FileDialog(msoFileDialogFolderPicker)
+
+    With FldrPicker
+      .Title = "Select A Target Folder"
+      .AllowMultiSelect = False
+        If .Show <> -1 Then GoTo NextCode
+        myPath = .SelectedItems(1) & "\"
+    End With
+
+'In Case of Cancel
+NextCode:
+  myPath = myPath
+  If myPath = "" Then Exit Sub
+
+'Target File Extension (must include wildcard "*")
+  myExtension = "*.xls*"
+
+'Target Path with Ending Extention
+  myFile = Dir(myPath & myExtension)
+
+'Loop through each Excel file in folder
+  Do While myFile <> ""
+    'Set variable equal to opened workbook
+    Set wb = Workbooks.Open(Filename:=myPath & myFile)
+    nameWb = myPath & Left(myFile, InStr(1, myFile, ".") - 1) & ".csv"
+
+    If wb.Sheets.Count > 2 Then
+
+        'create temporary sheet for combined data
+        Sheets.Add Before:=Sheets(1)
+        ActiveSheet.Name = "Combined"
+        Range("A1").Select
+
+        sh_data = 3
+        'copies headers from first data sheet
+        If boolHeader Then
+            Sheets(sh_data).Select '
+            Range("A1", Range("A1").End(xlToRight)).Copy
+            Sheets("Combined").Select
+            Range("A1").PasteSpecial Paste:=xlPasteAll
+            Application.CutCopyMode = False
+            Range("A2").Select
+        End If
+
+        'loops through sheets copying data
+        For intS = sh_data To wb.Sheets.Count
+            Sheets(intS).Select
+            If boolHeader Then
+                strUL = "A2"
+            Else
+                strUL = "A1"
+            End If
+            Range(strUL, Range(strUL).SpecialCells(xlLastCell)).Copy
+            Sheets("Combined").Select
+            ActiveCell.PasteSpecial Paste:=xlPasteAll
+            Application.CutCopyMode = False
+            Range("A" & Rows.Count).End(xlUp).Offset(1, 0).Select
+        Next intS
+
+        wb.SaveAs Filename:=nameWb, FileFormat:=xlCSV
+        wb.Close savechanges:=False
+        'Get next file name
+          myFile = Dir
+    Else
+        wb.SaveAs Filename:=nameWb, FileFormat:=xlCSV
+        wb.Close savechanges:=False
+        'Get next file name
+          myFile = Dir
+    End If
+  Loop
+
+'Reset Macro Optimization Settings
+  Application.ScreenUpdating = True
+  Application.EnableEvents = True
+  Application.Calculation = xlCalculationAutomatic
+  MsgBox "All workbooks converted.", vbInformation + vbOKOnly, "Complete"
+End Sub
