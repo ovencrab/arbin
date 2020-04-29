@@ -19,15 +19,16 @@ import plot_data
 # Folder or file import
 folder_select = 0
 
-# Data processing
-user_decimate = 0
-row_target = 500
-
 # Outputs
 save_indexed = 1
 save_decimated = 0
 
+# Data processing
+user_decimate = 0
+row_target = 500
+
 # Plot config
+user_plot_fprofile = 1
 user_cell = 1
 user_cycle = 0 # 0 plots all cycles
 user_x = 'test_time'
@@ -142,16 +143,15 @@ print('--------------------------------------')
 print('Plot data')
 print('--------------------------------------')
 
-tic = time.perf_counter()
+if user_plot_fprofile == 1 :
+    tic = time.perf_counter()
 
-fig = plot_data.profile(df, user_cell, user_cycle, user_x, user_y, user_y2)
+    fig = plot_data.fprofile(df, user_cell, user_cycle, user_x, user_y, user_y2)
 
-fig.show()
+    fig.show()
 
-toc = time.perf_counter()
-print(f"Plot generated in {toc - tic:0.1f}s")
+    toc = time.perf_counter()
+    print(f"Plot generated in {toc - tic:0.1f}s")
 
 #------------------------
 # End
-
-sys.exit()
