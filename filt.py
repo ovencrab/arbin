@@ -3,6 +3,7 @@ import pandas as pd
 from pathlib import Path
 import yaml
 from math import floor
+from more_itertools import pairwise
 
 ### Debugging ###
 import sys
@@ -49,29 +50,32 @@ def index(df, data_paths, data_folder, save_indexed) :
         dataframe -- dataframe with new index
     """
     # Find mean current value of each step (i.e. rest, charge, discharge)
-    df_grouped = df.groupby(['cell', 'cycle_index', 'step_index'])['current'].mean()
+    df_mean = df.groupby(['cell', 'cycle_index', 'step_index'])['current'].mean()
     print('1 - Created dataframe of mean current values per step_index.')
 
     # Find indexes which have an average current of 0 and drop them (as they should be the initial rest steps)
-    mean_zero_list = df_grouped.index[df_grouped == 0].tolist()
+    mean_zero_list = df_mean.index[df_mean == 0].tolist()
     if mean_zero_list :
-        df = df.drop(df_grouped.index[df_grouped == 0].tolist())
+        df = df.drop(df_mean.index[df_mean == 0].tolist())
         print('2 - Dropped \'average current = 0\' rows.')
     else :
         print('2 - No initial rest step detected.')
 
+    df_last = df.groupby(['cell', 'cycle_index', 'step_index'])['current'].last()
+
     # Find indexes where the current reduces to 0 label them as 'rest' steps (probably need some extra checks here)
-    any_zero_list = df.index[df['current'] == 0].tolist()
-    if any_zero_list :
-        df.loc[df.index[df['current'] == 0].tolist(), 'new_index'] = 'rest'
+    last_current_list = df_last.index[df_last == 0].tolist()
+    if last_current_list :
+        df.loc[df_last.index[df_last == 0].tolist(), 'new_index'] = 'rest'
         print('3 - Dropped indexes that have \'current = 0\' in any row.')
     else :
         print('3 - No indexes that have \'current = 0\' in any row detected.')
 
     # Group filtered data by the mean of each step_index and assign 'pos' or 'neg' labels to the new column 'new_index'
-    df_grouped = df.groupby(['cell', 'cycle_index', 'step_index'])['current'].mean()
-    df.loc[df_grouped.index[df_grouped > 0].tolist(), 'new_index'] = 'pos'
-    df.loc[df_grouped.index[df_grouped < 0].tolist(), 'new_index'] = 'neg'
+    df_mean = df.groupby(['cell', 'cycle_index', 'step_index'])['current'].mean()
+    df_mean.drop(df_last.index[df_last == 0].tolist(), inplace=True)
+    df.loc[df_mean.index[df_mean > 0].tolist(), 'new_index'] = 'pos'
+    df.loc[df_mean.index[df_mean < 0].tolist(), 'new_index'] = 'neg'
 
     # Remove old step_index from df and reindex with 'new_index'
     df.reset_index(level='step_index',inplace=True,drop=True)
@@ -85,7 +89,7 @@ def index(df, data_paths, data_folder, save_indexed) :
     return df
 
 
-def decimate(df, row_target, data_paths, data_folder, save_decimated):
+def decimate(df, row_target, data_paths, data_folder, save_decimated) :
     """Removes rows of data according to the floored ratio between row_target and the step length
 
     Arguments:
@@ -144,3 +148,42 @@ def decimate(df, row_target, data_paths, data_folder, save_decimated):
         save(df, 'decimated', data_paths, data_folder)
 
     return df_decimate, counter
+
+def cap(df, n_cells) :
+    """Takes dataframes after filt.index or filt.decimate processing and
+    finds the capacity from positive and negative currents
+
+    Arguments:
+        df {dataframe} -- pre-processed dataframe
+        n_cells {int} -- number of cells
+
+    Returns:
+        dataframe -- dataframe of capacity values
+    """
+    df_new = df.reset_index()
+    df_new.set_index(['cell', 'cycle_index', 'step_index'], inplace=True)
+    df_new.sort_index(inplace=True)
+
+    df_pos = df_new.groupby(['cell', 'cycle_index', 'step_index'])['charge_cumulative'].last()
+    df_pos = df_pos.loc(axis=0)[pd.IndexSlice[: , :, 'pos']]
+    df_pos.reset_index('step_index', drop=True, inplace=True)
+
+    df_neg = df_new.groupby(['cell', 'cycle_index', 'step_index'])['discharge_cumulative'].last()
+    df_neg = df_neg.loc(axis=0)[pd.IndexSlice[: , :, 'neg']]
+    df_neg.reset_index('step_index', drop=True, inplace=True)
+
+    df_cap = pd.concat([df_pos,df_neg], ignore_index=True, axis=1)
+    df_cap.columns = ['p_cap','n_cap']
+
+    for n in range(n_cells) :
+        i = 2
+        for value in (y - x for (x, y) in pairwise(df_cap.loc[n+1]['p_cap'])) :
+            df_cap.loc[(n+1, i), 'p_cap'] = value
+            i = i + 1
+
+        i=2
+        for value in (y - x for (x, y) in pairwise(df_cap.loc[n+1]['n_cap'])) :
+            df_cap.loc[(n+1, i), 'n_cap'] = value
+            i = i + 1
+
+    return df_cap

@@ -4,6 +4,7 @@ from tkinter.filedialog import askopenfilenames, askdirectory
 from pathlib import Path
 import yaml
 import pandas as pd
+import numpy as np
 
 ### Import debugging ###
 import time
@@ -20,7 +21,7 @@ import plot_data
 folder_select = 0
 
 # Outputs
-save_indexed = 1
+save_indexed = 0
 save_decimated = 0
 
 # Data processing
@@ -28,7 +29,7 @@ user_decimate = 0
 row_target = 500
 
 # Plot config
-user_plot_fprofile = 1
+user_plot_fprofile = 0
 user_cell = 1
 user_cycle = 0 # 0 plots all cycles
 user_x = 'test_time'
@@ -42,18 +43,22 @@ user_y2 = 'current'
 # Select files and call import functions
 if folder_select == 0 :
 
-    # Open dialog box to select files
+    # # Open dialog box to select files
     # Tk().withdraw()
     # filez = askopenfilenames(title='Choose a file', filetypes=(('.csv files', '*.csv'),))
 
-    # Create list of files and extract folder path from first file path
+    # # Create list of files and extract folder path from first file path
     # filez = list(filez)
     # data_paths = [Path(data_path) for data_path in filez]
     # data_folder = Path(data_paths[0]).parent
+
     t_str = 'decimated'
     data_paths = [Path.home() / 'OneDrive - Nexus365/Oxford/0 Post doc/02 Data/Arbin/001 Test data/{}/JE_LtS_rate_B1_12_Channel_12_{}_1.csv'.format(t_str, t_str),
                  Path.home() / 'OneDrive - Nexus365/Oxford/0 Post doc/02 Data/Arbin/001 Test data/{}/JE_LtS_rate_B2_13_Channel_13_{}_2.csv'.format(t_str, t_str),
                  Path.home() / 'OneDrive - Nexus365/Oxford/0 Post doc/02 Data/Arbin/001 Test data/{}/JE_LtS_rate_B3_14_Channel_14_{}_3.csv'.format(t_str, t_str)]
+    # data_paths = [Path.home() / 'OneDrive - Nexus365/Oxford/0 Post doc/02 Data/Arbin/001 Test data/JE_LtS_rate_B1_12_Channel_12.csv',
+    #              Path.home() / 'OneDrive - Nexus365/Oxford/0 Post doc/02 Data/Arbin/001 Test data/JE_LtS_rate_B2_13_Channel_13.csv',
+    #              Path.home() / 'OneDrive - Nexus365/Oxford/0 Post doc/02 Data/Arbin/001 Test data/JE_LtS_rate_B3_14_Channel_14.csv']
     data_folder = Path(data_paths[0]).parent
 else:
     # Open dialog box to select folder
@@ -154,4 +159,10 @@ if user_plot_fprofile == 1 :
     print(f"Plot generated in {toc - tic:0.1f}s")
 
 #------------------------
-# End
+# Capacity calculations
+
+df_cap = filt.cap(df, n_cells)
+
+print(df_cap)
+print(df_cap.groupby('cycle_index').mean().head())
+print(df_cap.groupby('cycle_index').std().head())
