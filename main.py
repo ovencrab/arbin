@@ -1,14 +1,18 @@
 ### Import packages ###
-from tkinter import Tk
-from tkinter.filedialog import askopenfilenames, askdirectory
 from pathlib import Path
-import yaml
-import pandas as pd
+from tkinter import Tk
+from tkinter.filedialog import askdirectory, askopenfilenames
 import numpy as np
+import pandas as pd
+import yaml
+import re
 
 ### Import debugging ###
-import time
 import sys
+import time
+
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 ### Import functions ###
 import load
@@ -30,14 +34,17 @@ row_target = 500
 
 # Plot config
 user_plot_fprofile = 0
-user_cell = 1
-user_cycle = 0 # 0 plots all cycles
+user_cell = 0
+user_cycle = '2-39' # 0 plots all cycles
 user_x = 'test_time'
 user_y = 'voltage'
 user_y2 = 'current'
-user_x_cyc = 'cycle'
-user_y_cyc = 'discharge_cap'
-user_y2_cyc = 'none'
+
+user_plot_cycle = 1
+user_cyc_x = 'cycle'
+user_cyc_y = 'p_cap'
+user_cap_type = 'raw'
+user_cyc_y2 = 0
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 ### Script ###
@@ -102,6 +109,7 @@ elif any(index_check) :
     decimated = 0
     filtered = 1
 
+
 toc = time.perf_counter()
 print(f"Imported files in {toc - tic:0.1f}s")
 
@@ -122,9 +130,7 @@ if decimated == 0 :
         print('--------------------------------------')
 
         tic = time.perf_counter()
-
         df = filt.index(df, data_paths, data_folder, save_indexed)
-
         toc = time.perf_counter()
         print(f"4 - Created new index in {toc - tic:0.1f}s")
 
@@ -137,13 +143,24 @@ if decimated == 0 :
         print('--------------------------------------')
 
         tic = time.perf_counter()
-
         df_decimate, counter = filt.decimate(df, row_target, data_paths, data_folder, save_decimated)
-
         toc = time.perf_counter()
         t = f'{toc - tic:0.1f}'
         print('{} - Reduced number of rows from {} to {} in {}s'.format(counter, df.shape[0], df_decimate.shape[0],t))
         df = df_decimate
+
+
+#------------------------
+# Capacity calculations
+
+print('--------------------------------------')
+print('Cycle data')
+print('--------------------------------------')
+
+tic = time.perf_counter()
+df_cap = filt.cap(df, n_cells)
+toc = time.perf_counter()
+print(f"Cycle data generated in {toc - tic:0.1f}s")
 
 #------------------------
 # Plotting test
@@ -152,18 +169,77 @@ print('--------------------------------------')
 print('Plot data')
 print('--------------------------------------')
 
+# Plot voltage/current profiles
 if user_plot_fprofile == 1 :
     tic = time.perf_counter()
-
     fig = plot_data.fprofile(df, user_cell, user_cycle, user_x, user_y, user_y2)
-
     fig.show()
+    toc = time.perf_counter()
+    print(f"Plot generated in {toc - tic:0.1f}s")
+
+# Plot cycle data
+if user_plot_cycle == 1 :
+    tic = time.perf_counter()
+
+    if len(df_cap.index.get_level_values(0).unique()) == 1 :
+        fig = go.Figure()
+        n = df_cap.index.get_level_values(0).unique().values[0]
+        fig = plot_data.cycle_trace(df_cap, fig, n, user_cap_type, user_cyc_y)
+        plot_data.def_format(fig, n, n_cells)
+    else :
+        fig = go.Figure()
+        for n in df_cap.index.get_level_values(0).unique() :
+            if n == 0 :
+                continue
+            else :
+                fig = plot_data.cycle_trace(df_cap, fig, n, user_cap_type, user_cyc_y)
+
+        plot_data.def_format(fig, n, n_cells)
+
+        fig_avg = go.Figure()
+        n = 0
+        fig_avg = plot_data.cycle_trace(df_cap.xs(0, level='cell', drop_level=False), fig_avg, n, user_cap_type, user_cyc_y)
+        plot_data.def_format(fig_avg, n, n_cells)
 
     toc = time.perf_counter()
     print(f"Plot generated in {toc - tic:0.1f}s")
 
-#------------------------
-# Capacity calculations
+# Filter dataframe by user_cycle entry
 
-df_cap = filt.cap(df, n_cells)
-print(df_cap)
+
+
+
+# #  Plot with or without second y axis
+# if user_cyc_y2 == 0 :
+#     fig = go.Figure()
+
+#     for n in df_plot.index.get_level_values(0).unique() :
+#         fig.add_trace(go.Scatter(x=df_plot.index.get_level_values(1),
+#                             y=np.squeeze(df_plot.loc[idx[n, :], idx[:, user_cyc_y]].values),
+#                             mode='markers',
+#                             name='Cell {}'.format(n)))
+
+#     fig.update_layout(yaxis_title='Capacity (Ah)')
+# else :
+#     fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+#     fig.add_trace(go.Scatter(x=df_plot.index.get_level_values(1),
+#                             y=np.squeeze(df_plot.loc(axis=1)[:, user_cyc_y].values),
+#                             mode='markers',
+#                             name='capacity'),
+#                             secondary_y=False)
+
+#     fig.add_trace(go.Scatter(x=df_plot.index.get_level_values(1),
+#                             y=np.squeeze(df_plot.loc(axis=1)[:, user_cyc_y2].values),
+#                             mode='markers',
+#                             name='cou_eff'),
+#                             secondary_y=True)
+
+#     fig.update_yaxes(title_text="Voltage (V)", secondary_y=False)
+#     fig.update_yaxes(title_text="Current (A)", secondary_y=True)
+
+
+# fig.update_layout(title='Profile: Cell {} - Cycle {}'.format(user_cell_out,user_cycle_out),
+#                 xaxis_title='Cycle')
+# fig.update_xaxes(showgrid=False, rangemode='tozero')
+# fig.update_yaxes(showgrid=False, rangemode='tozero')

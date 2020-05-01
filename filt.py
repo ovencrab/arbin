@@ -107,7 +107,9 @@ def decimate(df, row_target, data_paths, data_folder, save_decimated) :
     df_plot.sort_index(inplace=True)
 
     # Create empty dataframe to store downsampled df
-    my_index = pd.MultiIndex(levels=[[0],[1],[2]], codes=[[],[],[]], names=['cell','cycle_index','step_index'])
+    my_index = pd.MultiIndex(levels=[[0],[1],[2]],
+                             codes=[[],[],[]],
+                             names=['cell','cycle_index','step_index'])
     df_decimate = pd.DataFrame(columns=df_plot.columns, index=my_index)
 
     # Find start and end of cell index, and the start of both cycle_index and step_index
@@ -131,7 +133,6 @@ def decimate(df, row_target, data_paths, data_folder, save_decimated) :
             if L0_start <= i[0] <= L0_end and i[1] == L1_start and i[2] == L2_start :
                 print('{} - Decimated cell {}...'.format(counter, i[0]))
                 counter = counter + 1
-
         else :
             df_decimate = df_decimate.append(df_temp.iloc[::downsampler])
 
@@ -160,21 +161,27 @@ def cap(df, n_cells) :
     Returns:
         dataframe -- dataframe of capacity values
     """
+    # Remove date_time as index
     df_new = df.reset_index()
     df_new.set_index(['cell', 'cycle_index', 'step_index'], inplace=True)
     df_new.sort_index(inplace=True)
 
+    # Take the last capacity per step_index in the positive cumulative capacity column
     df_pos = df_new.groupby(['cell', 'cycle_index', 'step_index'])['charge_cumulative'].last()
     df_pos = df_pos.loc(axis=0)[pd.IndexSlice[: , :, 'pos']]
     df_pos.reset_index('step_index', drop=True, inplace=True)
 
+    # Take the last capacity per step_index in the negative cumulative capacity column
     df_neg = df_new.groupby(['cell', 'cycle_index', 'step_index'])['discharge_cumulative'].last()
     df_neg = df_neg.loc(axis=0)[pd.IndexSlice[: , :, 'neg']]
     df_neg.reset_index('step_index', drop=True, inplace=True)
 
+    # Combine positive and negative dataframes
     df_cap = pd.concat([df_pos,df_neg], ignore_index=True, axis=1)
     df_cap.columns = ['p_cap','n_cap']
 
+    # Use pairwise function and generator expression to find the
+    # capacity per cycle from cumulative capacities
     for n in range(n_cells) :
         i = 2
         for value in (y - x for (x, y) in pairwise(df_cap.loc[n+1]['p_cap'])) :
@@ -186,8 +193,8 @@ def cap(df, n_cells) :
             df_cap.loc[(n+1, i), 'n_cap'] = value
             i = i + 1
 
-    df_cap.sort_index(inplace=True)
-
+    # Calculate mean and std from multiple cells and create '0' cell index
+    # Append df_cap to averaged data
     if n_cells > 1 :
         df_avg = df_cap.groupby('cycle_index').mean()
         df_std = df_cap.groupby('cycle_index').std()
@@ -203,5 +210,9 @@ def cap(df, n_cells) :
         df_std.set_index(['cell','cycle_index'], inplace = True)
 
         df_cap = pd.concat([df_cap, df_std], axis=1)
+
+    # Create multi index in column axis referring to 'raw' capacity
+    df_cap = pd.concat([df_cap], axis=1, keys=['raw'])
+    df_cap.sort_index(inplace=True)
 
     return df_cap
