@@ -186,4 +186,22 @@ def cap(df, n_cells) :
             df_cap.loc[(n+1, i), 'n_cap'] = value
             i = i + 1
 
+    df_cap.sort_index(inplace=True)
+
+    if n_cells > 1 :
+        df_avg = df_cap.groupby('cycle_index').mean()
+        df_std = df_cap.groupby('cycle_index').std()
+        df_std.columns = ['p_cap_std', 'n_cap_std']
+
+        df_avg.insert(2, 'cell', 0)
+        df_avg.reset_index(inplace = True)
+        df_avg.set_index(['cell','cycle_index'], inplace = True)
+        df_cap = df_avg.append(df_cap)
+
+        df_std.insert(2, 'cell', 0)
+        df_std.reset_index(inplace = True)
+        df_std.set_index(['cell','cycle_index'], inplace = True)
+
+        df_cap = pd.concat([df_cap, df_std], axis=1)
+
     return df_cap

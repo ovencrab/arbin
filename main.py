@@ -35,6 +35,9 @@ user_cycle = 0 # 0 plots all cycles
 user_x = 'test_time'
 user_y = 'voltage'
 user_y2 = 'current'
+user_x_cyc = 'cycle'
+user_y_cyc = 'discharge_cap'
+user_y2_cyc = 'none'
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 ### Script ###
@@ -93,6 +96,7 @@ if not any(deci_check) and not any(index_check) :
 elif any(deci_check) :
     df, n_cells = load.csv_processed(data_paths, cell_info)
     decimated = 1
+    filtered = 1
 elif any(index_check) :
     df, n_cells = load.csv_processed(data_paths, cell_info)
     decimated = 0
@@ -162,7 +166,4 @@ if user_plot_fprofile == 1 :
 # Capacity calculations
 
 df_cap = filt.cap(df, n_cells)
-
 print(df_cap)
-print(df_cap.groupby('cycle_index').mean().head())
-print(df_cap.groupby('cycle_index').std().head())
