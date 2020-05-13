@@ -12,14 +12,14 @@ import sys
 ### Functions ###
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-def save(df, filt_string, data_paths, data_folder) :
+def save_csv(df, filt_string, data_folder, data_paths) :
     """Saves dataframe to a csv file per cell number
 
     Arguments:
         df {dataframe} -- dataframe to be saved
-        filt_string {str} -- str to name folder and append to processed filenames
+        filt_string {str} -- name of new folder
         data_paths {list} -- list of path objects to csv files
-        data_folder {path obj} -- path object to data folder
+        data_folder {path obj} -- path object to original data folder
 
     Returns:
         Exception error messages
@@ -29,14 +29,35 @@ def save(df, filt_string, data_paths, data_folder) :
                 data_folder.joinpath(filt_string).mkdir(parents=True, exist_ok=True)
         try :
             for i, data in enumerate(df.groupby(level='cell')):
-                data[1].to_csv(data_folder.joinpath(filt_string,'{}_{}_{}.csv'.format(data_paths[i].stem, filt_string, i+1)), encoding='utf-8')
+                data[1].to_csv(data_folder.joinpath(filt_string,'{}_{}_{}.csv'.format(data_paths[i].stem,
+                                                                                      filt_string,
+                                                                                      i+1)), encoding='utf-8')
         except :
             return print("Couldn't overwrite {} csv files".format(filt_string))
     except :
         return print("Couldn't create {} folder".format(filt_string))
 
 
-def index(df, data_paths, data_folder, save_indexed) :
+def save_yml(cell_info, filt_string, data_folder, info_path) :
+    """Saves yaml file to directory
+
+    Arguments:
+        cell_info {dict} -- dictionary to be saved
+        filt_string {str} -- name of new folder
+        data_folder {path obj} -- path object to original data folder
+
+    Returns:
+        Exception error messages on error
+    """
+    try :
+        file = data_folder.joinpath(filt_string,info_path[0].name)
+        with open(file, 'w') as yaml_file :
+            yaml.dump(cell_info, yaml_file, default_flow_style=False)
+    except :
+        return print("Couldn't overwrite {} yaml file".format(filt_string))
+
+
+def index(df) :
     """Removes rest steps from data, changes step_index to 'pos' and 'neg' current labels and
        creates a multi-index based on cell, cycle_index, step_index and date_time
 
@@ -83,13 +104,10 @@ def index(df, data_paths, data_folder, save_indexed) :
     df.index.names = ['cell', 'cycle_index', 'date_time', 'step_index']
     df.sort_index(inplace=True)
 
-    if save_indexed == 1 :
-        save(df, 'indexed', data_paths, data_folder)
-
     return df
 
 
-def decimate(df, row_target, data_paths, data_folder, save_decimated) :
+def decimate(df, row_target) :
     """Removes rows of data according to the floored ratio between row_target and the step length
 
     Arguments:
@@ -143,10 +161,6 @@ def decimate(df, row_target, data_paths, data_folder, save_decimated) :
     df_decimate.reset_index(inplace=True)
     df_decimate.set_index(['cell','cycle_index', 'date_time','step_index'], inplace=True)
     df_decimate.sort_index(inplace=True)
-
-    # Save decimated data to csv files in */decimated folder
-    if save_decimated == 1 :
-        save(df, 'decimated', data_paths, data_folder)
 
     return df_decimate, counter
 

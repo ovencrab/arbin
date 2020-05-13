@@ -26,9 +26,9 @@ def yml(data_folder) :
     with open(str(info_path[0])) as file :
         cell_info = yaml.full_load(file)
 
-    return cell_info
+    return cell_info, info_path
 
-def csv_raw(data_paths, cell_info) :
+def csv(data_paths, cell_info) :
     """Takes path to csv files and returns a multi-index dataframe and # of cells variable.
 
     Arguments:
@@ -49,56 +49,36 @@ def csv_raw(data_paths, cell_info) :
         print("Reading file #",i+1," of ",n_cells,": ",data_paths[i])
         data = pd.read_csv(data_paths[i]) # Perhaps add dtypes to improve peformance
 
-        # Create concatenated dataframe from all cells
-        data.insert(0, 'cell', cell_info['cell'][i])
+        if data.columns[0] == 'Date_Time' :
+            # Create concatenated dataframe from all cells
+            data.insert(0, 'cell', cell_info['cell'][i])
+            raw = True
+        else :
+            raw = False
+
         df = df.append(data)
 
-    # Change column headers to correct format and set indexes based on cell number, step index and cycle index
-    df.columns = ['cell',
-                  'date_time',
-                  'test_time',
-                  'step_time',
-                  'step_index',
-                  'cycle_index',
-                  'voltage',
-                  'current',
-                  'charge_cumulative',
-                  'discharge_cumulative',
-                  'charge_energy',
-                  'discharge_energy',
-                  'ACR',
-                  'int_resistance',
-                  'dv/dt']
-    df.set_index(['cell', 'cycle_index', 'step_index'], inplace=True)
-    df.sort_index(inplace=True)
+    if raw :
+        # Change column headers to correct format and set indexes based on cell number, step index and cycle index
+        df.columns = ['cell',
+                    'date_time',
+                    'test_time',
+                    'step_time',
+                    'step_index',
+                    'cycle_index',
+                    'voltage',
+                    'current',
+                    'charge_cumulative',
+                    'discharge_cumulative',
+                    'charge_energy',
+                    'discharge_energy',
+                    'ACR',
+                    'int_resistance',
+                    'dv/dt']
+        df.set_index(['cell', 'cycle_index', 'step_index'], inplace=True)
+        df.sort_index(inplace=True)
+    else :
+        df.set_index(['cell', 'cycle_index', 'date_time', 'step_index'], inplace=True)
+        df.sort_index(inplace=True)
 
-    return df, n_cells
-
-def csv_processed(data_paths, cell_info) :
-    """Takes path to indexed or decimated csv files and returns a multi-index dataframe and # of cells variable.
-
-    Arguments:
-        data_path {list} -- Strings pointing to selected csv data files
-        cell_info {dictionary} -- Cell information including material, mass, thickness etc.
-
-    Returns:
-        dataframe -- A multi-index dataframe of arbin cell cycle data (Index: cell number (cell), cycle index (Cycle_Index) and step index (Step_Index)
-        integer -- Number of cells in data set
-    """
-    # Find length of file list
-    n_cells = len(data_paths)
-    df = pd.DataFrame()
-
-    for i in range (n_cells) :
-
-        # Read in csv
-        print("Reading file #",i+1," of ",n_cells,": ",data_paths[i])
-        data = pd.read_csv(data_paths[i]) # Perhaps add dtypes to improve peformance
-
-        # Create concatenated dataframe from all cells
-        df = df.append(data)
-
-    df.set_index(['cell', 'cycle_index', 'date_time', 'step_index'], inplace=True)
-    df.sort_index(inplace=True)
-
-    return df, n_cells
+    return df, n_cells, raw

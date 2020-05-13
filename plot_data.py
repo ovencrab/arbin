@@ -9,28 +9,38 @@ import plotly
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-# Cufflinks wrapper on plotly
-import cufflinks as cf
+# # Cufflinks wrapper on plotly
+# import cufflinks as cf
 
-# Offline mode
-from plotly.offline import iplot
-cf.go_offline()
+# # Offline mode
+# from plotly.offline import iplot
+# cf.go_offline()
 
-# Set global theme
-cf.set_config_file(world_readable=True, theme='ggplot')
+# # Set global theme
+# cf.set_config_file(world_readable=True, theme='ggplot')
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 ### Functions ###
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
 def fprofile(df_plot, user_cell, user_cycle, user_x, user_y, user_y2):
-    if user_cycle > 0 :
-        df_slice = df_plot.loc[(user_cell, user_cycle)]
-        user_cycle_out = user_cycle
-    elif user_cycle == 0 :
-        df_slice = df_plot.loc[user_cell]
-        user_cycle_out = "all"
+    # user_cell can equal 0 if user wants to plot average capacity
+    if user_cell not in df_plot.index.get_level_values(0).unique().values :
+        cell = df_plot.index.get_level_values(0).unique().values[0]
+    else :
+        cell = user_cell
 
+    if type(user_cycle) == int and user_cycle > 0 :
+        df_slice = df_plot.loc[(cell, user_cycle)]
+        user_cycle_out = user_cycle
+    elif type(user_cycle) == str :
+        try :
+            idx = pd.IndexSlice
+            values = [int(s) for s in re.findall(r'\b\d+\b', user_cycle)]
+            df_slice = df_plot.loc[idx[cell, values[0]:values[1]],:]
+            user_cycle_out = user_cycle
+        except :
+            print('Format error in ''Cycles'' input field')
 
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     fig.add_trace(go.Scatter(x=df_slice[user_x].values,
@@ -45,13 +55,13 @@ def fprofile(df_plot, user_cell, user_cycle, user_x, user_y, user_y2):
                              name='Current (A)'),
                             secondary_y=True)
 
-    fig.update_layout(title='Profile: Cell {} - Cycle {}'.format(user_cell, user_cycle_out), xaxis_title='Test time (s)')
+    fig.update_layout(title='Profile: Cell {} - Cycle {}'.format(cell, user_cycle_out), xaxis_title='Test time (s)')
     fig.update_yaxes(title_text="Voltage (V)", secondary_y=False)
     fig.update_yaxes(title_text="Current (A)", secondary_y=True)
 
     return fig
 
-
+# For plotting cycle capacity scatters
 def cycle_trace(df_cap, fig, n, user_cap_type, user_cyc_y) :
     idx = pd.IndexSlice
     fig.add_trace(go.Scatter(x=df_cap.index.get_level_values(1),
@@ -61,7 +71,7 @@ def cycle_trace(df_cap, fig, n, user_cap_type, user_cyc_y) :
 
     return fig
 
-
+# For formatting cycle capacity scatters
 def def_format(fig, n, n_cells) :
     # Generate graph title
     if n_cells == 1 and n > 0 :
@@ -80,10 +90,21 @@ def def_format(fig, n, n_cells) :
     fig.show()
 
 
+
+
+
+
+
+
+
+
+
+
+
 def cycle_old(df_cap, user_cell, user_cycle, user_cyc_x, user_cyc_y, user_cyc_y2):
     idx = pd.IndexSlice
     # Filter dataframe by user_cycle entry
-    if user_cycle == 0 :
+    if type(user_cycle) == int and user_cycle == 0 :
         df_plot = df_cap
         user_cycle_out = 'all'
     elif type(user_cycle) == int and user_cycle > 0 :

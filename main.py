@@ -33,16 +33,16 @@ user_decimate = 0
 row_target = 500
 
 # Plot config
-user_plot_fprofile = 0
-user_cell = 0
-user_cycle = '2-39' # 0 plots all cycles
+user_plot_fprofile = 1
+user_cell = 1
+user_cycle = '2-5' # 0 plots all cycles
 user_x = 'test_time'
 user_y = 'voltage'
 user_y2 = 'current'
 
 user_plot_cycle = 1
 user_cyc_x = 'cycle'
-user_cyc_y = 'p_cap'
+user_cyc_y = 'n_cap'
 user_cap_type = 'raw'
 user_cyc_y2 = 0
 
@@ -76,40 +76,19 @@ else:
     data_folder = askdirectory(title="Choose data folder")  # "Open" dialog box and return the selected path
     data_paths = list(Path(data_folder).glob('*.csv'))
 
-# Finds the .yaml file in data_folder and creates a dictionary from the information
+# Finds the .yaml file in data_folder (or the parent directory) and
+# creates a dictionary from the information
 try :
-    cell_info = load.yml(data_folder)
+    cell_info, info_path = load.yml(data_folder)
 except :
     try :
-        cell_info = load.yml(data_folder.parent)
+        cell_info, info_path = load.yml(data_folder.parent)
     except :
         raise Exception("Can't find *.yaml information file")
 
-# Checks for decimated or previously indexed data
-str_check = [data_path.as_posix() for data_path in data_paths]
-
-deci_check = []
-index_check = []
-for i, data_name in enumerate(str_check) :
-    deci_check.append('decimated' in data_name)
-    index_check.append('indexed' in data_name)
-
 # Load csv data
 tic = time.perf_counter()
-if not any(deci_check) and not any(index_check) :
-    df, n_cells = load.csv_raw(data_paths, cell_info)
-    decimated = 0
-    filtered = 0
-elif any(deci_check) :
-    df, n_cells = load.csv_processed(data_paths, cell_info)
-    decimated = 1
-    filtered = 1
-elif any(index_check) :
-    df, n_cells = load.csv_processed(data_paths, cell_info)
-    decimated = 0
-    filtered = 1
-
-
+df, n_cells, raw = load.csv(data_paths, cell_info)
 toc = time.perf_counter()
 print(f"Imported files in {toc - tic:0.1f}s")
 
@@ -122,48 +101,72 @@ print('Dataframe size: {}'.format(df.size))
 
 #------------------------
 # Data filtering
+#------------------------
 
-if decimated == 0 :
-    if filtered == 0 :
-        print('--------------------------------------')
-        print('Data filtering')
-        print('--------------------------------------')
+if raw :
+    print('--------------------------------------')
+    print('Data filtering')
+    print('--------------------------------------')
 
-        tic = time.perf_counter()
-        df = filt.index(df, data_paths, data_folder, save_indexed)
-        toc = time.perf_counter()
-        print(f"4 - Created new index in {toc - tic:0.1f}s")
+    tic = time.perf_counter()
+    # Call index function on raw dataframe
+    df = filt.index(df)
+    toc = time.perf_counter()
+    print(f"4 - Created new index in {toc - tic:0.1f}s")
 
-    #------------------------
-    # Downsampling
+    tic = time.perf_counter()
+    # Save csv and yaml files
+    if save_indexed == 1 :
+        filt.save_csv(df, 'indexed', data_folder, data_paths)
+        cell_info['filtered'] = 1
+        filt.save_yml(cell_info, 'indexed', data_folder, info_path)
+    toc = time.perf_counter()
+    print(f"5 - Saved files to 'indexed' in {toc - tic:0.1f}s")
 
-    if user_decimate == 1:
-        print('--------------------------------------')
-        print('Decimating data')
-        print('--------------------------------------')
+#------------------------
+# Downsampling
+#------------------------
 
-        tic = time.perf_counter()
-        df_decimate, counter = filt.decimate(df, row_target, data_paths, data_folder, save_decimated)
-        toc = time.perf_counter()
-        t = f'{toc - tic:0.1f}'
-        print('{} - Reduced number of rows from {} to {} in {}s'.format(counter, df.shape[0], df_decimate.shape[0],t))
-        df = df_decimate
+if user_decimate == 1 :
+    print('--------------------------------------')
+    print('Decimating data')
+    print('--------------------------------------')
 
+    tic = time.perf_counter()
+    # Call decimate function on dataframe
+    df_decimate, counter = filt.decimate(df, row_target)
+    toc = time.perf_counter()
+    t = f'{toc - tic:0.1f}'
+    print('{} - Reduced number of rows from {} to {} in {}s'.format(counter, df.shape[0], df_decimate.shape[0],t))
+    df = df_decimate
+
+    tic = time.perf_counter()
+    # Save decimated data to csv files in */decimated folder
+    if save_decimated == 1 :
+        filt.save_csv(df, 'decimated', data_folder, data_paths)
+        cell_info['decimated'] = 1
+        filt.save_yml(cell_info, 'decimated', data_folder, info_path)
+    toc = time.perf_counter()
+    t = f'{toc - tic:0.1f}'
+    print('{} - Saved files in {}s'.format(counter+1,t))
 
 #------------------------
 # Capacity calculations
+#------------------------
 
 print('--------------------------------------')
 print('Cycle data')
 print('--------------------------------------')
 
 tic = time.perf_counter()
+# Call function to filter data into capacity per cycle
 df_cap = filt.cap(df, n_cells)
 toc = time.perf_counter()
 print(f"Cycle data generated in {toc - tic:0.1f}s")
 
 #------------------------
 # Plotting test
+#------------------------
 
 print('--------------------------------------')
 print('Plot data')
@@ -181,7 +184,9 @@ if user_plot_fprofile == 1 :
 if user_plot_cycle == 1 :
     tic = time.perf_counter()
 
+    # Checks for the number of cells in the data frame and plots traces
     if len(df_cap.index.get_level_values(0).unique()) == 1 :
+        # Dataframe only contains 1 cell
         fig = go.Figure()
         n = df_cap.index.get_level_values(0).unique().values[0]
         fig = plot_data.cycle_trace(df_cap, fig, n, user_cap_type, user_cyc_y)
@@ -190,12 +195,16 @@ if user_plot_cycle == 1 :
         fig = go.Figure()
         for n in df_cap.index.get_level_values(0).unique() :
             if n == 0 :
+                # skip cell index of 0 as it is the mean
                 continue
             else :
+                # create trace for all other cell indexes
                 fig = plot_data.cycle_trace(df_cap, fig, n, user_cap_type, user_cyc_y)
 
+        # Plot traces for each cell
         plot_data.def_format(fig, n, n_cells)
 
+        # Plot trace of mean
         fig_avg = go.Figure()
         n = 0
         fig_avg = plot_data.cycle_trace(df_cap.xs(0, level='cell', drop_level=False), fig_avg, n, user_cap_type, user_cyc_y)
