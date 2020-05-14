@@ -7,6 +7,9 @@ import pandas as pd
 import yaml
 import re
 
+### Temp packages ###
+from math import pi
+
 ### Import debugging ###
 import sys
 import time
@@ -16,6 +19,7 @@ from plotly.subplots import make_subplots
 
 ### Import functions ###
 import load
+import save
 import filt
 import plot_data
 
@@ -33,7 +37,7 @@ user_decimate = 0
 row_target = 500
 
 # Plot config
-user_plot_fprofile = 1
+user_plot_fprofile = 0
 user_cell = 1
 user_cycle = '2-5' # 0 plots all cycles
 user_x = 'test_time'
@@ -43,7 +47,7 @@ user_y2 = 'current'
 user_plot_cycle = 1
 user_cyc_x = 'cycle'
 user_cyc_y = 'n_cap'
-user_cap_type = 'raw'
+user_cap_type = 'mass'
 user_cyc_y2 = 0
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
@@ -117,9 +121,9 @@ if raw :
     tic = time.perf_counter()
     # Save csv and yaml files
     if save_indexed == 1 :
-        filt.save_csv(df, 'indexed', data_folder, data_paths)
+        save.multi(df, 'indexed', data_folder, data_paths)
         cell_info['filtered'] = 1
-        filt.save_yml(cell_info, 'indexed', data_folder, info_path)
+        save.yml(cell_info, 'indexed', data_folder, info_path)
     toc = time.perf_counter()
     print(f"5 - Saved files to 'indexed' in {toc - tic:0.1f}s")
 
@@ -143,9 +147,9 @@ if user_decimate == 1 :
     tic = time.perf_counter()
     # Save decimated data to csv files in */decimated folder
     if save_decimated == 1 :
-        filt.save_csv(df, 'decimated', data_folder, data_paths)
+        save.multi(df, 'decimated', data_folder, data_paths)
         cell_info['decimated'] = 1
-        filt.save_yml(cell_info, 'decimated', data_folder, info_path)
+        save.yml(cell_info, 'decimated', data_folder, info_path)
     toc = time.perf_counter()
     t = f'{toc - tic:0.1f}'
     print('{} - Saved files in {}s'.format(counter+1,t))
@@ -180,6 +184,35 @@ if user_plot_fprofile == 1 :
     toc = time.perf_counter()
     print(f"Plot generated in {toc - tic:0.1f}s")
 
+# Convert raw capacity to mAh/g
+df_cap_mass = df_cap.copy()
+
+for cell in df_cap_mass.index.get_level_values(0).unique().values :
+    data = df_cap_mass.xs(cell, level=0, axis=0, drop_level=False)
+    if cell == 0 :
+        df_cap_mass.update((data*1000)/(filt.f_mean(cell_info['mass'])/1000))
+    else :
+        df_cap_mass.update((data*1000)/(cell_info['mass'][cell-1]/1000))
+
+df_cap_mass.columns.set_levels(['mass'],level=0,inplace=True)
+
+df_cap_vol = df_cap.copy()
+
+# For each cell in data frame, convert Ah to mAh/g (cell = 0 is the mean)
+for cell in df_cap_vol.index.get_level_values(0).unique().values :
+    data = df_cap_vol.xs(cell, level=0, axis=0, drop_level=False)
+    if cell == 0 :
+        volume = pi * ((cell_info['diameter'] / 20) ** 2) * filt.f_mean(cell_info['thickness']) * (10 ** -4)
+        df_cap_vol.update((data*1000)/volume)
+    else :
+        volume = pi * ((cell_info['diameter'] / 20) ** 2) * cell_info['thickness'][cell-1] * (10 ** -4)
+        df_cap_vol.update((data*1000)/volume)
+
+# Rename raw column index to mass
+df_cap_vol.columns.set_levels(['vol'],level=0,inplace=True)
+
+df_cap = pd.concat([df_cap, df_cap_mass, df_cap_vol], axis=1)
+
 # Plot cycle data
 if user_plot_cycle == 1 :
     tic = time.perf_counter()
@@ -212,3 +245,4 @@ if user_plot_cycle == 1 :
 
     toc = time.perf_counter()
     print(f"Plot generated in {toc - tic:0.1f}s")
+

@@ -23,6 +23,7 @@ from plotly.subplots import make_subplots
 ### Functions ###
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
+# Plot complete or sections of the voltage and current profile
 def fprofile(df_plot, user_cell, user_cycle, user_x, user_y, user_y2):
     # user_cell can equal 0 if user wants to plot average capacity
     if user_cell not in df_plot.index.get_level_values(0).unique().values :
@@ -61,7 +62,7 @@ def fprofile(df_plot, user_cell, user_cycle, user_x, user_y, user_y2):
 
     return fig
 
-# For plotting cycle capacity scatters
+# Plot cycle capacity scatters
 def cycle_trace(df_cap, fig, n, user_cap_type, user_cyc_y) :
     idx = pd.IndexSlice
     fig.add_trace(go.Scatter(x=df_cap.index.get_level_values(1),
@@ -71,7 +72,7 @@ def cycle_trace(df_cap, fig, n, user_cap_type, user_cyc_y) :
 
     return fig
 
-# For formatting cycle capacity scatters
+# Format cycle capacity scatters
 def def_format(fig, n, n_cells) :
     # Generate graph title
     if n_cells == 1 and n > 0 :
@@ -83,7 +84,7 @@ def def_format(fig, n, n_cells) :
 
     fig.update_layout(title='Cell {} - Cycles'.format(user_cell_out),
                     xaxis_title='Cycle',
-                    yaxis_title='Capacity (Ah)')
+                    yaxis_title='Capacity (mAh/g)')
     fig.update_xaxes(showgrid=False, rangemode='tozero')
     fig.update_yaxes(showgrid=False, rangemode='tozero')
 

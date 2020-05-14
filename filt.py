@@ -12,51 +12,6 @@ import sys
 ### Functions ###
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-def save_csv(df, filt_string, data_folder, data_paths) :
-    """Saves dataframe to a csv file per cell number
-
-    Arguments:
-        df {dataframe} -- dataframe to be saved
-        filt_string {str} -- name of new folder
-        data_paths {list} -- list of path objects to csv files
-        data_folder {path obj} -- path object to original data folder
-
-    Returns:
-        Exception error messages
-    """
-    try :
-        if not data_folder.joinpath(filt_string).is_dir() :
-                data_folder.joinpath(filt_string).mkdir(parents=True, exist_ok=True)
-        try :
-            for i, data in enumerate(df.groupby(level='cell')):
-                data[1].to_csv(data_folder.joinpath(filt_string,'{}_{}_{}.csv'.format(data_paths[i].stem,
-                                                                                      filt_string,
-                                                                                      i+1)), encoding='utf-8')
-        except :
-            return print("Couldn't overwrite {} csv files".format(filt_string))
-    except :
-        return print("Couldn't create {} folder".format(filt_string))
-
-
-def save_yml(cell_info, filt_string, data_folder, info_path) :
-    """Saves yaml file to directory
-
-    Arguments:
-        cell_info {dict} -- dictionary to be saved
-        filt_string {str} -- name of new folder
-        data_folder {path obj} -- path object to original data folder
-
-    Returns:
-        Exception error messages on error
-    """
-    try :
-        file = data_folder.joinpath(filt_string,info_path[0].name)
-        with open(file, 'w') as yaml_file :
-            yaml.dump(cell_info, yaml_file, default_flow_style=False)
-    except :
-        return print("Couldn't overwrite {} yaml file".format(filt_string))
-
-
 def index(df) :
     """Removes rest steps from data, changes step_index to 'pos' and 'neg' current labels and
        creates a multi-index based on cell, cycle_index, step_index and date_time
@@ -164,6 +119,7 @@ def decimate(df, row_target) :
 
     return df_decimate, counter
 
+
 def cap(df, n_cells) :
     """Takes dataframes after filt.index or filt.decimate processing and
     finds the capacity from positive and negative currents
@@ -230,3 +186,6 @@ def cap(df, n_cells) :
     df_cap.sort_index(inplace=True)
 
     return df_cap
+
+def f_mean(lst):
+    return sum(lst) / len(lst)
