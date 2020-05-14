@@ -65,10 +65,19 @@ def fprofile(df_plot, user_cell, user_cycle, user_x, user_y, user_y2):
 # Plot cycle capacity scatters
 def cycle_trace(df_cap, fig, n, user_cap_type, user_cyc_y) :
     idx = pd.IndexSlice
-    fig.add_trace(go.Scatter(x=df_cap.index.get_level_values(1),
-                             y=np.squeeze(df_cap.loc[idx[n, :],
-                                                      idx[user_cap_type, user_cyc_y]].values),
-                             mode='markers', name='Cell {}'.format(n)))
+    y_values = np.squeeze(df_cap.loc[idx[n, :],idx[user_cap_type, user_cyc_y]].values)
+    if n == 0 :
+        err_values = list(np.squeeze(df_cap.loc[idx[n, :],idx[user_cap_type, '{}_std'.format(user_cyc_y)]].values))
+        fig.add_trace(go.Scatter(x = df_cap.index.get_level_values(1),
+                                y = y_values,
+                                error_y = dict(type='data', array=err_values, visible=True),
+                                mode='markers',
+                                name='Cell {}'.format(n)))
+    else :
+        fig.add_trace(go.Scatter(x = df_cap.index.get_level_values(1),
+                                y = y_values,
+                                mode='markers',
+                                name='Cell {}'.format(n)))
 
     return fig
 

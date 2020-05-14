@@ -2,7 +2,7 @@
 import pandas as pd
 from pathlib import Path
 import yaml
-from math import floor
+from math import floor, pi
 from more_itertools import pairwise
 
 ### Debugging ###
@@ -158,7 +158,7 @@ def cap(df, n_cells) :
             df_cap.loc[(n+1, i), 'p_cap'] = value
             i = i + 1
 
-        i=2
+        i = 2
         for value in (y - x for (x, y) in pairwise(df_cap.loc[n+1]['n_cap'])) :
             df_cap.loc[(n+1, i), 'n_cap'] = value
             i = i + 1
@@ -187,5 +187,66 @@ def cap(df, n_cells) :
 
     return df_cap
 
-def f_mean(lst):
+
+def f_mean(lst) :
+    """Returns average of a list
+
+    Arguments:
+        lst {list} -- list of ints
+
+    Returns:
+        int -- the average value
+    """
     return sum(lst) / len(lst)
+
+
+def converter(param, cell_info, cell) :
+    """Returns a parameter value (i.e. 'mass' or 'volume') for a cell
+    or the average of the cells
+
+    Arguments:
+        param {str} -- decides conversion equation to use
+        cell_info {dict} -- cell information
+        cell {int} -- cell number (if 0, the equation uses the f_mean function value)
+
+    Returns:
+        int -- returns the calculated value
+    """
+    if param == 'mass' :
+        div = cell_info['mass'][cell-1]
+    elif param == 'volume' :
+        div = pi * ((cell_info['diameter'] / 20) ** 2) * cell_info['thickness'][cell-1] * (10 ** -4)
+        div = div * 1000 # Unit conversion allows same equation to calculate mass and thickness
+
+    return div
+
+
+def cap_convert(df, cell_info, param, col_slice) :
+    """Converts raw capacity values (or stds) to:
+    1) per g (param = 'mass')
+    2) per cm3 (param = 'volume')
+
+    Arguments:
+        df {dataframe} -- dataframe of cells, cycle number and capacity values/stds
+        cell_info {dict} -- cell information
+        param {str} -- passed to filt.converter function
+        col_slice {str or list} -- column headers in level=1 to index by
+
+    Returns:
+        dataframe -- the converted dataframe
+    """
+    idx = pd.IndexSlice
+    df_copy = df.copy()
+
+    for cell in df_copy.index.get_level_values(0).unique().values :
+        data = df_copy.loc[idx[cell,:], :]
+
+        if col_slice != 'all' :
+            data = data.loc[idx[:, :], idx[:, col_slice]]
+
+        div = converter(param, cell_info, cell)
+        df_copy.update((data*1000)/(div/1000))
+
+    df_copy.columns.set_levels([param],level=0,inplace=True)
+
+    return df_copy
