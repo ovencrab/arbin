@@ -131,36 +131,47 @@ def cap(df, n_cells) :
     Returns:
         dataframe -- dataframe of capacity values
     """
+    idx = pd.IndexSlice
     # Remove date_time as index
     df_new = df.reset_index()
     df_new.set_index(['cell', 'cycle_index', 'step_index'], inplace=True)
     df_new.sort_index(inplace=True)
 
-    # Take the last capacity per step_index in the positive cumulative capacity column
+    # Positive current (mean)
+    df_p_curr = df.groupby(['cell', 'cycle_index', 'step_index'])['current'].mean()
+    df_p_curr = df_p_curr.loc[idx[: , :, 'pos']]
+    df_p_curr.reset_index('step_index', drop=True, inplace=True)
+
+    # Negative current (mean)
+    df_n_curr = df.groupby(['cell', 'cycle_index', 'step_index'])['current'].mean()
+    df_n_curr = df_n_curr.loc[idx[: , :, 'neg']]
+    df_n_curr.reset_index('step_index', drop=True, inplace=True)
+
+    # Positive cumulative capacity (last)
     df_pos = df_new.groupby(['cell', 'cycle_index', 'step_index'])['charge_cumulative'].last()
-    df_pos = df_pos.loc(axis=0)[pd.IndexSlice[: , :, 'pos']]
+    df_pos = df_pos.loc(axis=0)[idx[: , :, 'pos']]
     df_pos.reset_index('step_index', drop=True, inplace=True)
 
-    # Take the last capacity per step_index in the negative cumulative capacity column
+    # Negative cumulative capacity (last)
     df_neg = df_new.groupby(['cell', 'cycle_index', 'step_index'])['discharge_cumulative'].last()
-    df_neg = df_neg.loc(axis=0)[pd.IndexSlice[: , :, 'neg']]
+    df_neg = df_neg.loc(axis=0)[idx[: , :, 'neg']]
     df_neg.reset_index('step_index', drop=True, inplace=True)
 
     # Combine positive and negative dataframes
-    df_cap = pd.concat([df_pos,df_neg], ignore_index=True, axis=1)
-    df_cap.columns = ['p_cap','n_cap']
+    df_cap = pd.concat([df_p_curr, df_n_curr, df_pos, df_neg], ignore_index=True, axis=1)
+    df_cap.columns = ['p_curr', 'n_curr', 'p_cap', 'n_cap']
 
     # Use pairwise function and generator expression to find the
     # capacity per cycle from cumulative capacities
-    for n in range(n_cells) :
+    for cell in df_cap.index.get_level_values(0).unique().values :
         i = 2
-        for value in (y - x for (x, y) in pairwise(df_cap.loc[n+1]['p_cap'])) :
-            df_cap.loc[(n+1, i), 'p_cap'] = value
+        for value in (y - x for (x, y) in pairwise(df_cap.loc[cell]['p_cap'])) :
+            df_cap.loc[(cell, i), 'p_cap'] = value
             i = i + 1
 
         i = 2
-        for value in (y - x for (x, y) in pairwise(df_cap.loc[n+1]['n_cap'])) :
-            df_cap.loc[(n+1, i), 'n_cap'] = value
+        for value in (y - x for (x, y) in pairwise(df_cap.loc[cell]['n_cap'])) :
+            df_cap.loc[(cell+1, i), 'n_cap'] = value
             i = i + 1
 
     # Calculate mean and std from multiple cells and create '0' cell index
