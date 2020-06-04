@@ -133,29 +133,25 @@ def cap(df, n_cells) :
     """
     idx = pd.IndexSlice
     # Remove date_time as index
-    df_new = df.reset_index()
-    df_new.set_index(['cell', 'cycle_index', 'step_index'], inplace=True)
-    df_new.sort_index(inplace=True)
+    df = df.reset_index()
+    df.set_index(['cell', 'cycle_index', 'step_index'], inplace=True)
+    df.sort_index(inplace=True)
 
     # Positive current (mean)
     df_p_curr = df.groupby(['cell', 'cycle_index', 'step_index'])['current'].mean()
     df_p_curr = df_p_curr.loc[idx[: , :, 'pos']]
-    df_p_curr.reset_index('step_index', drop=True, inplace=True)
 
     # Negative current (mean)
     df_n_curr = df.groupby(['cell', 'cycle_index', 'step_index'])['current'].mean()
     df_n_curr = df_n_curr.loc[idx[: , :, 'neg']]
-    df_n_curr.reset_index('step_index', drop=True, inplace=True)
 
     # Positive cumulative capacity (last)
-    df_pos = df_new.groupby(['cell', 'cycle_index', 'step_index'])['charge_cumulative'].last()
-    df_pos = df_pos.loc(axis=0)[idx[: , :, 'pos']]
-    df_pos.reset_index('step_index', drop=True, inplace=True)
+    df_pos = df.groupby(['cell', 'cycle_index', 'step_index'])['charge_cumulative'].last()
+    df_pos = df_pos.loc[idx[: , :, 'pos']]
 
     # Negative cumulative capacity (last)
-    df_neg = df_new.groupby(['cell', 'cycle_index', 'step_index'])['discharge_cumulative'].last()
-    df_neg = df_neg.loc(axis=0)[idx[: , :, 'neg']]
-    df_neg.reset_index('step_index', drop=True, inplace=True)
+    df_neg = df.groupby(['cell', 'cycle_index', 'step_index'])['discharge_cumulative'].last()
+    df_neg = df_neg.loc[idx[: , :, 'neg']]
 
     # Combine positive and negative dataframes
     df_cap = pd.concat([df_p_curr, df_n_curr, df_pos, df_neg], ignore_index=True, axis=1)
@@ -166,19 +162,21 @@ def cap(df, n_cells) :
     for cell in df_cap.index.get_level_values(0).unique().values :
         i = 2
         for value in (y - x for (x, y) in pairwise(df_cap.loc[cell]['p_cap'])) :
-            df_cap.loc[(cell, i), 'p_cap'] = value
+            df_cap.loc[idx[cell , i], 'p_cap'] = value
             i = i + 1
 
         i = 2
         for value in (y - x for (x, y) in pairwise(df_cap.loc[cell]['n_cap'])) :
-            df_cap.loc[(cell+1, i), 'n_cap'] = value
+            df_cap.loc[idx[cell , i], 'n_cap'] = value
             i = i + 1
 
     # Calculate mean and std from multiple cells and create '0' cell index
     # Append df_cap to averaged data
+
     if n_cells > 1 :
         df_avg = df_cap.groupby('cycle_index').mean()
         df_std = df_cap.groupby('cycle_index').std()
+        df_std = df_std[['p_cap','n_cap']]
         df_std.columns = ['p_cap_std', 'n_cap_std']
 
         df_avg.insert(2, 'cell', 0)

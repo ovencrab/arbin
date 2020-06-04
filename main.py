@@ -31,16 +31,16 @@ folder_select = 0
 # Outputs
 save_indexed = 0
 save_decimated = 0
-save_cycle_data = 1
+save_cycle_data = 0
 
 # Data processing
 user_decimate = 0
 row_target = 500
 
 # Plot config
-user_plot_fprofile = 0
+user_plot_fprofile = 1
 user_cell = 1
-user_cycle = '2-5' # 0 plots all cycles
+user_cycle = 2 # 0 plots all cycles # '2-5' to plot cycles 2 to 5
 user_x = 'test_time'
 user_y = 'voltage'
 user_y2 = 'current'
