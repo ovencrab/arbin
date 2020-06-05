@@ -25,15 +25,18 @@ from plotly.subplots import make_subplots
 
 # Plot complete or sections of the voltage and current profile
 def fprofile(df_plot, user_cell, user_cycle, user_x, user_y, user_y2):
-    # user_cell can equal 0 if user wants to plot average capacity
+
+    # Default to cell 1 if user_cell is 0 (i.e. wants average cell plot)
     if user_cell not in df_plot.index.get_level_values(0).unique().values :
         cell = df_plot.index.get_level_values(0).unique().values[0]
     else :
         cell = user_cell
 
+    # Index by user_cycle
     if type(user_cycle) == int and user_cycle > 0 :
         df_slice = df_plot.loc[(cell, user_cycle)]
         user_cycle_out = user_cycle
+    # elif user_cycle is a range (i.e. '2-5')
     elif type(user_cycle) == str :
         try :
             idx = pd.IndexSlice
@@ -58,8 +61,8 @@ def fprofile(df_plot, user_cell, user_cycle, user_x, user_y, user_y2):
 
     fig.update_layout(title='Profile: Cell {} - Cycle {}'.format(cell, user_cycle_out),
                       xaxis_title='Test time (s)',
-                      width = 1600,
-                      height = 800,
+                      width = 600,
+                      height = 400,
                       legend=dict(x=0.925,
                                   y=0.975,
                                   bordercolor="Black",
@@ -74,30 +77,31 @@ def fprofile(df_plot, user_cell, user_cycle, user_x, user_y, user_y2):
     return fig
 
 # Plot cycle capacity scatters
-def cycle_trace(df_cap, fig, n, user_cap_type, user_cyc_y) :
+def cycle_trace(df_cap, fig, cell_idx, user_cap_type, user_cyc_y) :
     idx = pd.IndexSlice
-    y_values = np.squeeze(df_cap.loc[idx[n, :],idx[user_cap_type, user_cyc_y]].values)
-    if n == 0 :
-        err_values = list(np.squeeze(df_cap.loc[idx[n, :],idx[user_cap_type, '{}_std'.format(user_cyc_y)]].values))
+    y_values = np.squeeze(df_cap.loc[idx[cell_idx, :],idx[user_cap_type, user_cyc_y]].values)
+    if cell_idx == 0 :
+        err_values = list(np.squeeze(df_cap.loc[idx[cell_idx, :],
+                                                idx[user_cap_type, '{}_std'.format(user_cyc_y)]].values))
         fig.add_trace(go.Scatter(x = df_cap.index.get_level_values(1),
                                 y = y_values,
                                 error_y = dict(type='data', array=err_values, visible=True),
                                 mode='markers',
-                                name='Cell {}'.format(n)))
+                                name='Cell {}'.format(cell_idx)))
     else :
         fig.add_trace(go.Scatter(x = df_cap.index.get_level_values(1),
                                 y = y_values,
                                 mode='markers',
-                                name='Cell {}'.format(n)))
+                                name='Cell {}'.format(cell_idx)))
 
     return fig
 
 # Format cycle capacity scatters
-def def_format(fig, n, n_cells) :
+def def_format(fig, cell_idx, n_cells) :
     # Generate graph title
-    if n_cells == 1 and n > 0 :
-        user_cell_out = n
-    elif n == 0 :
+    if n_cells == 1 and cell_idx > 0 :
+        user_cell_out = cell_idx
+    elif cell_idx == 0 :
         user_cell_out = 'mean'
     else :
         user_cell_out = '1-{}'.format(n_cells)
@@ -105,8 +109,8 @@ def def_format(fig, n, n_cells) :
     fig.update_layout(title='Cell {} - Cycles'.format(user_cell_out),
                       xaxis_title='Cycle',
                       yaxis_title='Capacity (mAh/g)',
-                      width = 800,
-                      height = 800,
+                      width = 600,
+                      height = 400,
                       legend=dict(x=0.025, y=0.025, bordercolor="Black", borderwidth=1)
                       )
     fig.update_xaxes(showgrid=False, rangemode='tozero')

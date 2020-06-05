@@ -38,14 +38,14 @@ user_decimate = 0
 row_target = 500
 
 # Plot config
-user_plot_fprofile = 1
+user_plot_fprofile = 0
 user_cell = 1
 user_cycle = '2-5' # 0 plots all cycles # '2-5' to plot cycles 2 to 5
 user_x = 'test_time'
 user_y = 'voltage'
 user_y2 = 'current'
 
-user_plot_cycle = 1
+user_plot_cycle = 0
 user_cyc_x = 'cycle'
 user_cyc_y = 'n_cap'
 user_cap_param = 'mass'
@@ -172,10 +172,10 @@ cell_info['thickness'].insert(0, filt.f_mean(cell_info['thickness']))
 cell_info['mass'].insert(0, filt.f_mean(cell_info['mass']))
 
 # For each cell in data frame, convert Ah to mAh/g (cell = 0 is the mean)
-df_cap_mass = filt.cap_convert(df_cap, cell_info, 'mass', 'all')
+df_cap_mass = filt.cap_convert(df_cap, cell_info, 'mass', ['p_cap', 'n_cap', 'p_cap_std', 'n_cap_std'])
 
 # For each cell in data frame, convert Ah to mAh/cm3 (cell = 0 is the mean)
-df_cap_vol = filt.cap_convert(df_cap, cell_info, 'volume', 'all')
+df_cap_vol = filt.cap_convert(df_cap, cell_info, 'volume', ['p_cap', 'n_cap', 'p_cap_std', 'n_cap_std'])
 
 # Concatenate raw, mass and vol cycle capacity dataframes
 df_cap = pd.concat([df_cap, df_cap_mass, df_cap_vol], axis=1)
@@ -214,28 +214,32 @@ if user_plot_cycle == 1 :
     if len(df_cap.index.get_level_values(0).unique()) == 1 :
         # Dataframe only contains 1 cell
         fig = go.Figure()
-        n = df_cap.index.get_level_values(0).unique().values[0]
-        fig = plot_data.cycle_trace(df_cap, fig, n, user_cap_param, user_cyc_y)
-        plot_data.def_format(fig, n, n_cells)
+        cell_idx = df_cap.index.get_level_values(0).unique().values[0]
+        fig = plot_data.cycle_trace(df_cap, fig, cell_idx, user_cap_param, user_cyc_y)
+        plot_data.def_format(fig, cell_idx, n_cells)
     else :
         fig = go.Figure()
-        for n in df_cap.index.get_level_values(0).unique() :
-            if n == 0 :
+        for cell_idx in df_cap.index.get_level_values(0).unique() :
+            if cell_idx == 0 :
                 # skip cell index of 0 as it is the mean
                 continue
             else :
                 # create trace for all other cell indexes
-                fig = plot_data.cycle_trace(df_cap, fig, n, user_cap_param, user_cyc_y)
+                fig = plot_data.cycle_trace(df_cap, fig, cell_idx, user_cap_param, user_cyc_y)
 
         # Plot traces for each cell
-        plot_data.def_format(fig, n, n_cells)
+        plot_data.def_format(fig, cell_idx, n_cells)
 
         # Plot trace of mean
         fig_avg = go.Figure()
-        n = 0
-        fig_avg = plot_data.cycle_trace(df_cap.xs(0, level='cell', drop_level=False), fig_avg, n, user_cap_param, user_cyc_y)
-        plot_data.def_format(fig_avg, n, n_cells)
+        cell_idx = 0
+        fig_avg = plot_data.cycle_trace(df_cap.xs(0, level='cell', drop_level=False), fig_avg, cell_idx, user_cap_param, user_cyc_y)
+        plot_data.def_format(fig_avg, cell_idx, n_cells)
 
     toc = time.perf_counter()
-    print(f"Plot generated in {toc - tic:0.1f}s")
+    print(f"Plots generated in {toc - tic:0.1f}s")
+
+#Debug
+idx = pd.IndexSlice
+df_cap.loc[idx[1, 1], idx['raw', 'p_curr']]
 

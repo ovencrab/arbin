@@ -5,3 +5,6 @@ __pycache__/
 # VS code
 *.code-workspace
 .vscode/
+
+# Conda env
+env/
