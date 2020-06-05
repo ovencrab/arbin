@@ -32,7 +32,7 @@ def index(df) :
     # Find indexes which have an average current of 0 and drop them (as they should be the initial rest steps)
     mean_zero_list = df_mean.index[df_mean == 0].tolist()
     if mean_zero_list :
-        df = df.drop(df_mean.index[df_mean == 0].tolist())
+        df.drop(df_mean.index[df_mean == 0].tolist(), inplace=True)
         print('2 - Dropped \'average current = 0\' rows.')
     else :
         print('2 - No initial rest step detected.')

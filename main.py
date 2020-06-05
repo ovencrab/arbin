@@ -40,7 +40,7 @@ row_target = 500
 # Plot config
 user_plot_fprofile = 1
 user_cell = 1
-user_cycle = 2 # 0 plots all cycles # '2-5' to plot cycles 2 to 5
+user_cycle = '2-5' # 0 plots all cycles # '2-5' to plot cycles 2 to 5
 user_x = 'test_time'
 user_y = 'voltage'
 user_y2 = 'current'
@@ -71,7 +71,7 @@ if folder_select == 0 :
     data_paths = [Path.home() / 'OneDrive - Nexus365/Oxford/0 Post doc/02 Data/Arbin/001 Test data/{}/JE_LtS_rate_B1_12_Channel_12_{}_1.csv'.format(t_str, t_str),
                  Path.home() / 'OneDrive - Nexus365/Oxford/0 Post doc/02 Data/Arbin/001 Test data/{}/JE_LtS_rate_B2_13_Channel_13_{}_2.csv'.format(t_str, t_str),
                  Path.home() / 'OneDrive - Nexus365/Oxford/0 Post doc/02 Data/Arbin/001 Test data/{}/JE_LtS_rate_B3_14_Channel_14_{}_3.csv'.format(t_str, t_str)]
-    # data_paths = [Path.home() / 'OneDrive - Nexus365/Oxford/0 Post doc/02 Data/Arbin/001 Test data/JE_LtS_rate_B1_12_Channel_12.csv',
+    #data_paths = [Path.home() / 'OneDrive - Nexus365/Oxford/0 Post doc/02 Data/Arbin/001 Test data/JE_LtS_rate_B1_12_Channel_12.csv',
     #              Path.home() / 'OneDrive - Nexus365/Oxford/0 Post doc/02 Data/Arbin/001 Test data/JE_LtS_rate_B2_13_Channel_13.csv',
     #              Path.home() / 'OneDrive - Nexus365/Oxford/0 Post doc/02 Data/Arbin/001 Test data/JE_LtS_rate_B3_14_Channel_14.csv']
     data_folder = Path(data_paths[0]).parent

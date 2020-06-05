@@ -56,9 +56,20 @@ def fprofile(df_plot, user_cell, user_cycle, user_x, user_y, user_y2):
                              name='Current (A)'),
                             secondary_y=True)
 
-    fig.update_layout(title='Profile: Cell {} - Cycle {}'.format(cell, user_cycle_out), xaxis_title='Test time (s)')
-    fig.update_yaxes(title_text="Voltage (V)", secondary_y=False)
-    fig.update_yaxes(title_text="Current (A)", secondary_y=True)
+    fig.update_layout(title='Profile: Cell {} - Cycle {}'.format(cell, user_cycle_out),
+                      xaxis_title='Test time (s)',
+                      width = 1600,
+                      height = 800,
+                      legend=dict(x=0.925,
+                                  y=0.975,
+                                  bordercolor="Black",
+                                  borderwidth=1,
+                                  xanchor="right",
+                                  yanchor="top")
+                      )
+    fig.update_xaxes(showgrid=False)
+    fig.update_yaxes(title_text="Voltage (V)", showgrid=False, secondary_y=False)
+    fig.update_yaxes(title_text="Current (A)", showgrid=False, secondary_y=True)
 
     return fig
 
@@ -92,16 +103,16 @@ def def_format(fig, n, n_cells) :
         user_cell_out = '1-{}'.format(n_cells)
 
     fig.update_layout(title='Cell {} - Cycles'.format(user_cell_out),
-                    xaxis_title='Cycle',
-                    yaxis_title='Capacity (mAh/g)')
+                      xaxis_title='Cycle',
+                      yaxis_title='Capacity (mAh/g)',
+                      width = 800,
+                      height = 800,
+                      legend=dict(x=0.025, y=0.025, bordercolor="Black", borderwidth=1)
+                      )
     fig.update_xaxes(showgrid=False, rangemode='tozero')
     fig.update_yaxes(showgrid=False, rangemode='tozero')
 
     fig.show()
-
-
-
-
 
 
 
