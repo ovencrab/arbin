@@ -32,10 +32,13 @@ folder_select = 0
 save_indexed = 0
 save_decimated = 0
 save_cycle_data = 0
+save_processed = 1
 
 # Data processing
 user_decimate = 0
 row_target = 500
+drop_list = ['test_time','charge_cumulative','discharge_cumulative',
+            'charge_energy','discharge_energy','ACR','int_resistance','dv/dt']
 
 # Plot config
 user_plot_fprofile = 0
@@ -122,11 +125,15 @@ if raw :
     tic = time.perf_counter()
     # Save csv and yaml files
     if save_indexed == 1 :
-        save.multi(df, 'indexed', data_folder, data_paths)
+        message, success = save.multi(df, data_folder, data_paths, 'indexed', 'indexed')
         cell_info['filtered'] = 1
         save.yml(cell_info, 'indexed', data_folder, info_path)
     toc = time.perf_counter()
-    print(f"5 - Saved files to 'indexed' in {toc - tic:0.1f}s")
+
+    if success == 1 :
+        print(f"5 - Saved files to 'indexed' in {toc - tic:0.1f}s")
+    else :
+        print(message)
 
 #------------------------
 # Downsampling
@@ -148,24 +155,29 @@ if user_decimate == 1 :
     tic = time.perf_counter()
     # Save decimated data to csv files in */decimated folder
     if save_decimated == 1 :
-        save.multi(df, 'decimated', data_folder, data_paths)
+        message, success = save.multi(df, data_folder, data_paths, 'decimated', 'decimated')
         cell_info['decimated'] = 1
         save.yml(cell_info, 'decimated', data_folder, info_path)
+
     toc = time.perf_counter()
     t = f'{toc - tic:0.1f}'
-    print('{} - Saved files in {}s'.format(counter+1,t))
+
+    if success == 1 :
+        print('{} - Saved files in {}s'.format(counter+1,t))
+    else :
+        print(message)
 
 #------------------------
 # Capacity calculations
 #------------------------
 
 print('--------------------------------------')
-print('Calculating cycle data')
+print('Calculating capacity and cycle data')
 print('--------------------------------------')
 
 tic = time.perf_counter()
 # Call function to filter data into capacity per cycle
-df_cap = filt.cap(df, n_cells)
+df_cap, df = filt.cap(df, n_cells)
 
 # Update cell_info with new average cell
 cell_info['thickness'].insert(0, filt.f_mean(cell_info['thickness']))
@@ -182,13 +194,27 @@ df_cap = pd.concat([df_cap, df_cap_mass, df_cap_vol], axis=1)
 
 toc = time.perf_counter()
 
-print(f"1 - Cycle data generated in {toc - tic:0.1f}s")
+print(f"1 - Subtractive capacity and cycle data generated in {toc - tic:0.1f}s")
 
 tic = time.perf_counter()
 if save_cycle_data == 1 :
     save.single(df_cap, data_folder, data_paths, 'output', 'cycle_data')
 toc = time.perf_counter()
-print(f"2 - Saved cycle data to 'output' in {toc - tic:0.1f}s")
+print(f"2 - Saved cycle data to 'data_folder/output' in {toc - tic:0.1f}s")
+
+tic = time.perf_counter()
+
+# Save decimated data to csv files in */decimated folder
+if save_processed == 1 :
+    df_export = df.drop(columns=drop_list)
+    message, success = save.multi(df_export, data_folder, data_paths, 'output', 'processed')
+
+toc = time.perf_counter()
+
+if success == 1 :
+    print(f"3 - Saved processed raw files to 'data_folder/output' in {toc - tic:0.1f}s")
+else :
+    print(message)
 
 #------------------------
 # Plotting test

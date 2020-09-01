@@ -157,9 +157,19 @@ def cap(df, n_cells) :
     df_cap = pd.concat([df_p_curr, df_n_curr, df_pos, df_neg], ignore_index=True, axis=1)
     df_cap.columns = ['p_curr', 'n_curr', 'p_cap', 'n_cap']
 
-    # Use pairwise function and generator expression to find the
-    # capacity per cycle from cumulative capacities
+    # Create columns for substractive capacity in full dataframe
+    df['p_cap'] = df['charge_cumulative'].copy()
+    df['n_cap'] = df['discharge_cumulative'].copy()
+
+    # Use pairwise function and generator expression to find the capacity
+    # per cycle from cumulative capacities. Use capacity per cycle to
+    # generate substractive capacity voltage curve data in df
     for cell in df_cap.index.get_level_values(0).unique().values :
+        for cyc_idx in df_cap.index.get_level_values(1).unique().values :
+            if cyc_idx > 1 :
+                df.loc[idx[cell , cyc_idx, :], 'p_cap'] = df.loc[idx[cell , cyc_idx, :], 'p_cap'] - df_cap.loc[idx[cell, cyc_idx-1], 'p_cap']
+                df.loc[idx[cell , cyc_idx, :], 'n_cap'] = df.loc[idx[cell , cyc_idx, :], 'n_cap'] - df_cap.loc[idx[cell, cyc_idx-1], 'n_cap']
+
         i = 2
         for value in (y - x for (x, y) in pairwise(df_cap.loc[cell]['p_cap'])) :
             df_cap.loc[idx[cell , i], 'p_cap'] = value
@@ -172,7 +182,6 @@ def cap(df, n_cells) :
 
     # Calculate mean and std from multiple cells and create '0' cell index
     # Append df_cap to averaged data
-
     if n_cells > 1 :
         df_avg = df_cap.groupby('cycle_index').mean()
         df_std = df_cap.groupby('cycle_index').std()
@@ -194,7 +203,11 @@ def cap(df, n_cells) :
     df_cap = pd.concat([df_cap], axis=1, keys=['raw'])
     df_cap.sort_index(inplace=True)
 
-    return df_cap
+    df = df.reset_index()
+    df.set_index(['cell','cycle_index', 'date_time','step_index'], inplace=True)
+    df.sort_index(inplace=True)
+
+    return df_cap, df
 
 
 def f_mean(lst) :
