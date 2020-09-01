@@ -31,7 +31,7 @@ folder_select = 0
 # Outputs
 save_indexed = 0
 save_decimated = 0
-save_cycle_data = 0
+save_cycle_data = 1
 save_processed = 1
 
 # Data processing
@@ -71,9 +71,9 @@ if folder_select == 0 :
     # data_folder = Path(data_paths[0]).parent
 
     t_str = 'decimated'
-    data_paths = [Path.home() / 'OneDrive - Nexus365/Oxford/0 Post doc/02 Data & Notes/02 Code analysis/Arbin/001 Test data/{}/JE_LtS_rate_B1_12_Channel_12_{}_1.csv'.format(t_str, t_str),
-                 Path.home() / 'OneDrive - Nexus365/Oxford/0 Post doc/02 Data & Notes/02 Code analysis/Arbin/001 Test data/{}/JE_LtS_rate_B2_13_Channel_13_{}_2.csv'.format(t_str, t_str),
-                 Path.home() / 'OneDrive - Nexus365/Oxford/0 Post doc/02 Data & Notes/02 Code analysis/Arbin/001 Test data/{}/JE_LtS_rate_B3_14_Channel_14_{}_3.csv'.format(t_str, t_str)]
+    data_paths = [Path.home() / 'OneDrive - Nexus365/Oxford/0 Post doc/02 Data & Notes/02 Code analysis/Arbin/001 Test data/JE_LtS_rate_B1_12_Channel_12.csv',
+                 Path.home() / 'OneDrive - Nexus365/Oxford/0 Post doc/02 Data & Notes/02 Code analysis/Arbin/001 Test data/JE_LtS_rate_B2_13_Channel_13.csv',
+                 Path.home() / 'OneDrive - Nexus365/Oxford/0 Post doc/02 Data & Notes/02 Code analysis/Arbin/001 Test data/JE_LtS_rate_B3_14_Channel_14.csv']
     #data_paths = [Path.home() / 'OneDrive - Nexus365/Oxford/0 Post doc/02 Data/Arbin/001 Test data/JE_LtS_rate_B1_12_Channel_12.csv',
     #              Path.home() / 'OneDrive - Nexus365/Oxford/0 Post doc/02 Data/Arbin/001 Test data/JE_LtS_rate_B2_13_Channel_13.csv',
     #              Path.home() / 'OneDrive - Nexus365/Oxford/0 Post doc/02 Data/Arbin/001 Test data/JE_LtS_rate_B3_14_Channel_14.csv']
@@ -122,18 +122,20 @@ if raw :
     toc = time.perf_counter()
     print(f"4 - Created new index in {toc - tic:0.1f}s")
 
-    tic = time.perf_counter()
     # Save csv and yaml files
     if save_indexed == 1 :
+        tic = time.perf_counter()
+
         message, success = save.multi(df, data_folder, data_paths, 'indexed', 'indexed')
         cell_info['filtered'] = 1
         save.yml(cell_info, 'indexed', data_folder, info_path)
-    toc = time.perf_counter()
 
-    if success == 1 :
-        print(f"5 - Saved files to 'indexed' in {toc - tic:0.1f}s")
-    else :
-        print(message)
+        toc = time.perf_counter()
+
+        if success == 1 :
+            print(f"5 - Saved files to 'indexed' in {toc - tic:0.1f}s")
+        else :
+            print(message)
 
 #------------------------
 # Downsampling
@@ -152,20 +154,22 @@ if user_decimate == 1 :
     print('{} - Reduced number of rows from {} to {} in {}s'.format(counter, df.shape[0], df_decimate.shape[0],t))
     df = df_decimate
 
-    tic = time.perf_counter()
     # Save decimated data to csv files in */decimated folder
     if save_decimated == 1 :
+        tic = time.perf_counter()
+
         message, success = save.multi(df, data_folder, data_paths, 'decimated', 'decimated')
         cell_info['decimated'] = 1
         save.yml(cell_info, 'decimated', data_folder, info_path)
 
-    toc = time.perf_counter()
-    t = f'{toc - tic:0.1f}'
+        toc = time.perf_counter()
+        t = f'{toc - tic:0.1f}'
 
-    if success == 1 :
-        print('{} - Saved files in {}s'.format(counter+1,t))
-    else :
-        print(message)
+        if success == 1 :
+            print('{} - Saved files in {}s'.format(counter+1,t))
+        else :
+            print(message)
+
 
 #------------------------
 # Capacity calculations
@@ -180,8 +184,44 @@ tic = time.perf_counter()
 df_cap, df = filt.cap(df, n_cells)
 
 # Update cell_info with new average cell
+cell_info['cell'].insert(0, 0)
 cell_info['thickness'].insert(0, filt.f_mean(cell_info['thickness']))
 cell_info['mass'].insert(0, filt.f_mean(cell_info['mass']))
+
+toc = time.perf_counter()
+
+print(f"1 - Subtractive capacity and cycle data generated in {toc - tic:0.1f}s")
+
+# Save cycle data to csv files in */output folder
+if save_cycle_data == 1 :
+    tic = time.perf_counter()
+    message, success = save.single(df_cap, data_folder, data_paths, 'output', 'cycle_data')
+    toc = time.perf_counter()
+    if success == 1 :
+        print(f"2 - Saved formatted cycle data to '*/output' in {toc - tic:0.1f}s")
+    else :
+        print(message)
+
+# Save processed voltage profile data to csv files in */output folder
+if save_processed == 1 :
+    tic = time.perf_counter()
+    df_export = df.drop(columns=drop_list)
+    message, success = save.multi_processed(df_export, data_folder, data_paths, 'none', 'processed')
+    toc = time.perf_counter()
+    if success == 1 :
+        print(f"3 - Saved processed voltage profile data to '*/output' in {toc - tic:0.1f}s")
+    else :
+        print(message)
+
+print('--------------------------------------')
+print('Convert capacity data to other formats')
+print('--------------------------------------')
+
+tic = time.perf_counter()
+
+# Create multi index in column axis referring to 'raw' capacity
+df_cap = pd.concat([df_cap], axis=1, keys=['raw'])
+df_cap.sort_index(inplace=True)
 
 # For each cell in data frame, convert Ah to mAh/g (cell = 0 is the mean)
 df_cap_mass = filt.cap_convert(df_cap, cell_info, 'mass', ['p_cap', 'n_cap', 'p_cap_std', 'n_cap_std'])
@@ -194,27 +234,7 @@ df_cap = pd.concat([df_cap, df_cap_mass, df_cap_vol], axis=1)
 
 toc = time.perf_counter()
 
-print(f"1 - Subtractive capacity and cycle data generated in {toc - tic:0.1f}s")
-
-tic = time.perf_counter()
-if save_cycle_data == 1 :
-    save.single(df_cap, data_folder, data_paths, 'output', 'cycle_data')
-toc = time.perf_counter()
-print(f"2 - Saved cycle data to 'data_folder/output' in {toc - tic:0.1f}s")
-
-tic = time.perf_counter()
-
-# Save decimated data to csv files in */decimated folder
-if save_processed == 1 :
-    df_export = df.drop(columns=drop_list)
-    message, success = save.multi(df_export, data_folder, data_paths, 'output', 'processed')
-
-toc = time.perf_counter()
-
-if success == 1 :
-    print(f"3 - Saved processed raw files to 'data_folder/output' in {toc - tic:0.1f}s")
-else :
-    print(message)
+print(f"1 - Converted cycle data to mass and volume format in {toc - tic:0.1f}s")
 
 #------------------------
 # Plotting test

@@ -199,10 +199,6 @@ def cap(df, n_cells) :
 
         df_cap = pd.concat([df_cap, df_std], axis=1)
 
-    # Create multi index in column axis referring to 'raw' capacity
-    df_cap = pd.concat([df_cap], axis=1, keys=['raw'])
-    df_cap.sort_index(inplace=True)
-
     df = df.reset_index()
     df.set_index(['cell','cycle_index', 'date_time','step_index'], inplace=True)
     df.sort_index(inplace=True)
