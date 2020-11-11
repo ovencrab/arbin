@@ -28,7 +28,7 @@ def multi(df, data_folder, data_paths, filt_string, suffix) :
             if not data_folder.is_dir() :
                     data_folder.mkdir(parents=True, exist_ok=True)
         try :
-            for i, data in enumerate(df.groupby(level='cell')):
+            for i, data in enumerate(df.groupby(level='cell')) :
                 data[1].reset_index(level=['cell','date_time'],drop=True).to_csv(data_folder.joinpath('{}_{}.csv'.format(data_paths[i].stem,
                                                                                 suffix)), encoding='utf-8')
         except :
@@ -41,7 +41,7 @@ def multi(df, data_folder, data_paths, filt_string, suffix) :
     message = ""
     return message, 1
 
-def multi_processed(df, data_folder, data_paths, filt_string, suffix) :
+def param_filter(df, data_folder, data_paths, cell_info, filt_string) :
     """Saves dataframe to a csv file per cell number
 
     Arguments:
@@ -53,15 +53,16 @@ def multi_processed(df, data_folder, data_paths, filt_string, suffix) :
     Returns:
         Exception error messages
     """
+    idx=pd.IndexSlice
     try :
         if filt_string != 'none' :
             data_folder = data_folder.joinpath(filt_string)
             if not data_folder.is_dir() :
                     data_folder.mkdir(parents=True, exist_ok=True)
         try :
-            for i, data in enumerate(df.groupby(level='cell')):
-                data[1].reset_index(level=['cell','date_time'],drop=True).to_csv(data_folder.joinpath('{}_{}.csv'.format(suffix,
-                                                                                                                            data_paths[i].stem)), encoding='utf-8')
+            params = df.columns.levels[1]
+            for param in params :
+                df.loc[idx[:],idx[:,param,:]].to_csv(data_folder.joinpath('{}_{}.csv'.format(cell_info['name'],param)), encoding='utf-8')
         except :
             message = "ERROR: Couldn't create or overwrite {} csv files".format(filt_string)
             return message, 0
@@ -91,7 +92,7 @@ def yml(cell_info, filt_string, data_folder, info_path) :
     except :
         return print("ERROR: Couldn't create or overwrite {} yaml file".format(filt_string))
 
-def single(df, data_folder, data_paths, filt_string, suffix) :
+def single(df, data_folder, data_paths, cell_info, filt_string, suffix) :
     """Saves dataframe to a csv file
 
     Arguments:
@@ -109,7 +110,7 @@ def single(df, data_folder, data_paths, filt_string, suffix) :
             if not data_folder.is_dir() :
                     data_folder.mkdir(parents=True, exist_ok=True)
         try :
-            df.to_csv(data_folder.joinpath('{}_{}.csv'.format(data_paths[0].stem,
+            df.to_csv(data_folder.joinpath('{}_{}.csv'.format(cell_info['name'],
                                                             suffix)), encoding='utf-8')
         except :
             message = "ERROR: Couldn't create or overwrite {} csv files".format(filt_string)

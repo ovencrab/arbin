@@ -187,7 +187,7 @@ print(f"1 - Subtractive capacity and cycle data generated in {toc - tic:0.1f}s")
 # Save cycle data to csv files in */output folder
 if save_cycle_data == 1 :
     tic = time.perf_counter()
-    message, success = save.single(df_cap, data_folder, data_paths, 'output', 'cycle_data')
+    message, success = save.single(df_cap, data_folder, data_paths, cell_info, 'output', 'cycle_data')
     toc = time.perf_counter()
     if success == 1 :
         print(f"2 - Saved formatted cycle data to '*/output' in {toc - tic:0.1f}s")
@@ -198,7 +198,7 @@ if save_cycle_data == 1 :
 if save_processed == 1 :
     tic = time.perf_counter()
     df_export = df.drop(columns=drop_list)
-    message, success = save.multi_processed(df_export, data_folder, data_paths, 'none', 'processed')
+    message, success = save.multi(df_export, data_folder, data_paths, 'output', 'processed')
     toc = time.perf_counter()
     if success == 1 :
         print(f"3 - Saved processed voltage profile data to '*/output' in {toc - tic:0.1f}s")
@@ -228,13 +228,17 @@ df_cap_areal = filt.cap_convert(df_cap, cell_info, 'areal', ['p_cap', 'n_cap', '
 # Concatenate raw, mass and vol cycle capacity dataframes
 df_cap = pd.concat([df_cap, df_cap_mass,  df_cap_areal, df_cap_vol], axis=1)
 
+df_cap_reformat = filt.reformat(df_cap)
+
+#df_cap_reformat.loc[idx[:],idx[:,param,:]]
+
 toc = time.perf_counter()
 
-print(f"1 - Converted cycle data to mass and volume format in {toc - tic:0.1f}s")
+print(f"1 - Converted cycle data to mass, areal and volume format in {toc - tic:0.1f}s")
 
 if save_cycle_data_converted == 1 :
     tic = time.perf_counter()
-    message, success = save.single(df_cap, data_folder, data_paths, 'output', 'cycle_data_converted')
+    message, success = save.param_filter(df_cap_reformat, data_folder, data_paths, cell_info, 'output')
     toc = time.perf_counter()
     if success == 1 :
         print(f"2 - Saved formatted cycle data to '*/output' in {toc - tic:0.1f}s")

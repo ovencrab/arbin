@@ -245,8 +245,10 @@ def converter(param, cell_info, cell) :
 
 def cap_convert(df, cell_info, param, col_slice) :
     """Converts raw capacity values (or stds) to:
-    1) per g (param = 'mass')
-    2) per cm3 (param = 'volume')
+    1) Ah to mAh
+    2) per g (param = 'mass')
+    3) per cm2 (param = 'areal')
+    4) per cm3 (param = 'volume')
 
     Arguments:
         df {dataframe} -- dataframe of cells, cycle number and capacity values/stds
@@ -273,3 +275,28 @@ def cap_convert(df, cell_info, param, col_slice) :
     df_copy.columns.set_levels([param],level=0,inplace=True)
 
     return df_copy
+
+def reformat(df_cap) :
+    """Converts appended data frame structure to horizontal concat
+
+    Arguments:
+        df {dataframe} -- dataframe of cells, cycle number and capacity values/stds
+
+    Returns:
+        dataframe -- the converted dataframe
+    """
+    df_cap_reformat = pd.DataFrame()
+    cells = df_cap.index.levels[0]
+    for cell in cells :
+        df_copy = df_cap.loc[cell]
+
+        if cell > 0 :
+            try:
+                df_copy.drop(['p_cap_std', 'n_cap_std'], axis=1, level=1, inplace=True)
+            except:
+                pass
+
+        df_copy = pd.concat([df_copy], keys=[cell], names=['cell'], axis=1)
+        df_cap_reformat = pd.concat([df_cap_reformat, df_copy], axis=1)
+
+    return df_cap_reformat
