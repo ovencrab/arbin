@@ -110,7 +110,7 @@ def def_format(fig, cell_idx, n_cells) :
                       xaxis_title='Cycle',
                       yaxis_title='Capacity (mAh/g)',
                       width = 600,
-                      height = 400,
+                      height = 600,
                       legend=dict(x=0.025, y=0.025, bordercolor="Black", borderwidth=1)
                       )
     fig.update_xaxes(showgrid=False, rangemode='tozero')

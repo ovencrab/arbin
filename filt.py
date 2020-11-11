@@ -231,9 +231,9 @@ def converter(param, cell_info, cell) :
         int -- returns the calculated value
     """
     if param == 'mass' :
-        div = cell_info['mass'][cell-1]
+        div = cell_info['mass'][cell]
     elif param == 'volume' :
-        div = pi * ((cell_info['diameter'] / 20) ** 2) * cell_info['thickness'][cell-1] * (10 ** -4)
+        div = pi * ((cell_info['diameter'] / 20) ** 2) * cell_info['thickness'][cell] * (10 ** -4)
         div = div * 1000 # Unit conversion allows same equation to convert to both mass, thickness and areal capacity
     elif param == 'areal' :
         div = pi * ((cell_info['diameter'] / 20) ** 2)

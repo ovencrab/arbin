@@ -31,9 +31,9 @@ folder_select = 1
 # Outputs
 save_indexed = 0
 save_decimated = 0
-save_cycle_data = 1
-save_processed = 1
-save_cycle_data_converted = 1
+save_cycle_data = 0
+save_processed = 0
+save_cycle_data_converted = 0
 
 # Data processing
 user_decimate = 0
@@ -42,16 +42,16 @@ drop_list = ['test_time','charge_cumulative','discharge_cumulative',
             'charge_energy','discharge_energy','ACR','int_resistance','dv/dt']
 
 # Plot config
-user_plot_fprofile = 0
+user_plot_fprofile = 1
 user_cell = 1
-user_cycle = '2-5' # 0 plots all cycles # '2-5' to plot cycles 2 to 5
+user_cycle = 2 # 0 plots all cycles # '2-5' to plot cycles 2 to 5
 user_x = 'test_time'
 user_y = 'voltage'
 user_y2 = 'current'
 
 user_plot_cycle = 0
 user_cyc_x = 'cycle'
-user_cyc_y = 'n_cap'
+user_cyc_y = 'p_cap'
 user_cap_param = 'mass'
 user_cyc_y2 = 0
 
