@@ -234,8 +234,12 @@ def converter(param, cell_info, cell) :
         div = cell_info['mass'][cell-1]
     elif param == 'volume' :
         div = pi * ((cell_info['diameter'] / 20) ** 2) * cell_info['thickness'][cell-1] * (10 ** -4)
-        div = div * 1000 # Unit conversion allows same equation to convert to both mass and thickness
-
+        div = div * 1000 # Unit conversion allows same equation to convert to both mass, thickness and areal capacity
+    elif param == 'areal' :
+        div = pi * ((cell_info['diameter'] / 20) ** 2)
+        div = div * 1000 # Unit conversion allows same equation to convert to both mass, thickness and areal capacity
+    elif param == 'mAh' :
+        div = 1
     return div
 
 
@@ -264,7 +268,7 @@ def cap_convert(df, cell_info, param, col_slice) :
             data = df_copy.loc[idx[cell, :], idx[:, col_slice]]
 
         div = converter(param, cell_info, cell)
-        df_copy.update((data*1000)/(div/1000))
+        df_copy.update((data)/(div/1000))
 
     df_copy.columns.set_levels([param],level=0,inplace=True)
 

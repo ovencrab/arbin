@@ -26,13 +26,14 @@ import plot_data
 ### Options ###
 
 # Folder or file import
-folder_select = 0
+folder_select = 1
 
 # Outputs
 save_indexed = 0
 save_decimated = 0
 save_cycle_data = 1
 save_processed = 1
+save_cycle_data_converted = 1
 
 # Data processing
 user_decimate = 0
@@ -60,16 +61,6 @@ user_cyc_y2 = 0
 
 # Select files and call import functions
 if folder_select == 0 :
-
-    # # Open dialog box to select files
-    # Tk().withdraw()
-    # filez = askopenfilenames(title='Choose a file', filetypes=(('.csv files', '*.csv'),))
-
-    # # Create list of files and extract folder path from first file path
-    # filez = list(filez)
-    # data_paths = [Path(data_path) for data_path in filez]
-    # data_folder = Path(data_paths[0]).parent
-
     t_str = 'decimated'
     data_paths = [Path.home() / 'OneDrive - Nexus365/Oxford/0 Post doc/02 Data & Notes/02 Code analysis/Arbin/001 Test data/JE_LtS_rate_B1_12_Channel_12.csv',
                  Path.home() / 'OneDrive - Nexus365/Oxford/0 Post doc/02 Data & Notes/02 Code analysis/Arbin/001 Test data/JE_LtS_rate_B2_13_Channel_13.csv',
@@ -83,6 +74,7 @@ else:
     Tk().withdraw()  # stops root window from appearing
     data_folder = askdirectory(title="Choose data folder")  # "Open" dialog box and return the selected path
     data_paths = list(Path(data_folder).glob('*.csv'))
+    data_folder = Path(data_paths[0]).parent
 
 # Finds the .yaml file in data_folder (or the parent directory) and
 # creates a dictionary from the information
@@ -222,19 +214,32 @@ tic = time.perf_counter()
 # Create multi index in column axis referring to 'raw' capacity
 df_cap = pd.concat([df_cap], axis=1, keys=['raw'])
 df_cap.sort_index(inplace=True)
+df_cap = filt.cap_convert(df_cap, cell_info, 'mAh', ['p_cap', 'n_cap', 'p_cap_std', 'n_cap_std'])
 
-# For each cell in data frame, convert Ah to mAh/g (cell = 0 is the mean)
+# For each cell in data frame, convert mAh to mAh/g (cell = 0 is the mean)
 df_cap_mass = filt.cap_convert(df_cap, cell_info, 'mass', ['p_cap', 'n_cap', 'p_cap_std', 'n_cap_std'])
 
-# For each cell in data frame, convert Ah to mAh/cm3 (cell = 0 is the mean)
+# For each cell in data frame, convert mAh to mAh/cm3 (cell = 0 is the mean)
 df_cap_vol = filt.cap_convert(df_cap, cell_info, 'volume', ['p_cap', 'n_cap', 'p_cap_std', 'n_cap_std'])
 
+# For each cell in data frame, convert mAh to mAh/cm2 (cell = 0 is the mean)
+df_cap_areal = filt.cap_convert(df_cap, cell_info, 'areal', ['p_cap', 'n_cap', 'p_cap_std', 'n_cap_std'])
+
 # Concatenate raw, mass and vol cycle capacity dataframes
-df_cap = pd.concat([df_cap, df_cap_mass, df_cap_vol], axis=1)
+df_cap = pd.concat([df_cap, df_cap_mass,  df_cap_areal, df_cap_vol], axis=1)
 
 toc = time.perf_counter()
 
 print(f"1 - Converted cycle data to mass and volume format in {toc - tic:0.1f}s")
+
+if save_cycle_data_converted == 1 :
+    tic = time.perf_counter()
+    message, success = save.single(df_cap, data_folder, data_paths, 'output', 'cycle_data_converted')
+    toc = time.perf_counter()
+    if success == 1 :
+        print(f"2 - Saved formatted cycle data to '*/output' in {toc - tic:0.1f}s")
+    else :
+        print(message)
 
 #------------------------
 # Plotting test
