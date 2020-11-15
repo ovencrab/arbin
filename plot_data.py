@@ -46,18 +46,29 @@ def fprofile(df_plot, user_cell, user_cycle, user_x, user_y, user_y2):
         except :
             print('Format error in ''Cycles'' input field')
 
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
-    fig.add_trace(go.Scatter(x=df_slice[user_x].values,
-                             y=df_slice[user_y].values,
-                             mode='lines',
-                             name='Voltage (V)'),
-                            secondary_y=False)
+    if user_y2 != 0:
+        fig = make_subplots(specs=[[{"secondary_y": True}]])
+    else:
+        fig = go.Figure()
 
-    fig.add_trace(go.Scatter(x=df_slice[user_x].values,
-                             y=df_slice[user_y2].values,
-                             mode='lines',
-                             name='Current (A)'),
-                            secondary_y=True)
+    if user_y2 != 0 :
+        fig.add_trace(go.Scatter(x=df_slice[user_x].values,
+                                y=df_slice[user_y].values,
+                                mode='lines',
+                                name='Voltage (V)'),
+                                secondary_y=False)
+
+
+        fig.add_trace(go.Scatter(x=df_slice[user_x].values,
+                                    y=df_slice[user_y2].values,
+                                    mode='lines',
+                                    name='Current (A)'),
+                                    secondary_y=True)
+    else:
+        fig.add_trace(go.Scatter(x=df_slice[user_x].values,
+                                y=df_slice[user_y].values,
+                                mode='lines',
+                                name='Voltage (V)'))
 
     fig.update_layout(title='Profile: Cell {} - Cycle {}'.format(cell, user_cycle_out),
                       xaxis_title='Test time (s)',
@@ -71,8 +82,12 @@ def fprofile(df_plot, user_cell, user_cycle, user_x, user_y, user_y2):
                                   yanchor="top")
                       )
     fig.update_xaxes(showgrid=False)
-    fig.update_yaxes(title_text="Voltage (V)", showgrid=False, secondary_y=False)
-    fig.update_yaxes(title_text="Current (A)", showgrid=False, secondary_y=True)
+
+    if user_y2 != 0 :
+        fig.update_yaxes(title_text="Voltage (V)", showgrid=False, secondary_y=False)
+        fig.update_yaxes(title_text="Current (A)", showgrid=False, secondary_y=True)
+    else:
+        fig.update_yaxes(title_text="Voltage (V)", showgrid=False)
 
     return fig
 

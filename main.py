@@ -23,6 +23,9 @@ import save
 import filt
 import plot_data
 
+### Indexing ###
+idx=pd.IndexSlice
+
 ### Options ###
 
 # Folder or file import
@@ -32,9 +35,10 @@ folder_select = 1
 save_indexed = 0
 save_decimated = 0
 #save_cycle_data = 1
-save_voltage = [1,'mass']
-save_cycle_data_combined = 1
-save_cycle_data_individual = [1,'mass']
+save_volt_indv = [0,'mass']
+save_cycle_data_combined = 0
+save_cycle_data_indv = [0,'mass']
+param_list = ['mAh','mass','volume','areal']
 
 # Data processing
 user_decimate = 0
@@ -43,9 +47,9 @@ drop_list = ['test_time','charge_cumulative','discharge_cumulative',
             'charge_energy','discharge_energy','ACR','int_resistance','dv/dt']
 
 # Plot config
-user_plot_fprofile = 0
+user_plot_fprofile = 1
 user_cell = 1
-user_cycle = 2 # 0 plots all cycles # '2-5' to plot cycles 2 to 5
+user_cycle = '1-2' # 0 plots all cycles # '2-5' to plot cycles 2 to 5
 user_x = 'test_time'
 user_y = 'voltage'
 user_y2 = 'current'
@@ -198,14 +202,38 @@ print('--------------------------------------')
 print('Convert voltage profiles to alternative formats')
 print('--------------------------------------')
 
-df_voltage = df_processed.drop(columns=drop_list)
+tic = time.perf_counter()
 
-###### <------ check save_voltage[1] and convert p_cap and n_cap based on the selected param
+# Drop unused columns and create multi index in column axis referring to 'raw' capacity
+df_volt = df_processed.drop(columns=drop_list)
+
+
+# Create list of dataframes of converted voltage vs capacity data and concat with raw dataframe
+volt_cnvrt_list = []
+for i, param in enumerate(param_list):
+  data_cnvrt = filt.param_convert(df_volt, cell_info, param, ['p_cap', 'n_cap'])
+  volt_cnvrt_list.append(data_cnvrt)
+
+df_volt_cnvrt = pd.concat(volt_cnvrt_list, axis=1)
+
+# Create multiindex for raw data and universal columns (voltage, current)
+universal_cols = ['step_time','voltage','current']
+univ = df_volt.loc[idx[:, :, :, :], universal_cols]
+raw = df_volt.loc[idx[:, :, :, :], ['p_cap','n_cap']]
+df_volt = pd.concat([univ, raw], axis=1, keys=['univ','raw'])
+
+# Concatenate universal columns and converted capacities
+univ_columns = df_volt.loc[idx[:, :, :, :], idx['univ',:]]
+df_volt_cnvrt = pd.concat([univ_columns, df_volt_cnvrt], axis=1)
+
+toc = time.perf_counter()
 
 # Save processed voltage profile data to csv files in */output folder
-if save_voltage[0] == 1 :
+if save_volt_indv[0] == 1 :
     tic = time.perf_counter()
-    message, success = save.multi(df_voltage, data_folder, data_paths, 'output', 'voltage')
+
+    message, success = save.multi(df_volt, data_folder, data_paths, 'output', 'voltage')
+
     toc = time.perf_counter()
     if success == 1 :
         print(f"2 - Saved indexed voltage profile data to '*/output' in {toc - tic:0.1f}s")
@@ -218,24 +246,18 @@ print('--------------------------------------')
 
 tic = time.perf_counter()
 
+cyc_cnvrt_list = []
+for i, param in enumerate(param_list):
+  data_cnvrt = filt.param_convert(df_cyc, cell_info, param, ['p_cap', 'n_cap', 'p_cap_std', 'n_cap_std'])
+  cyc_cnvrt_list.append(data_cnvrt)
+
+df_cyc_cnvrt = pd.concat(cyc_cnvrt_list, axis=1)
+
+df_cyc_reformat = filt.reformat(df_cyc_cnvrt)
+
 # Create multi index in column axis referring to 'raw' capacity
 df_cyc = pd.concat([df_cyc], axis=1, keys=['raw'])
 df_cyc.sort_index(inplace=True)
-df_cyc = filt.cap_convert(df_cyc, cell_info, 'mAh', ['p_cap', 'n_cap', 'p_cap_std', 'n_cap_std'])
-
-# For each cell in data frame, convert mAh to mAh/g (cell = 0 is the mean)
-df_cyc_mass = filt.cap_convert(df_cyc, cell_info, 'mass', ['p_cap', 'n_cap', 'p_cap_std', 'n_cap_std'])
-
-# For each cell in data frame, convert mAh to mAh/cm3 (cell = 0 is the mean)
-df_cyc_vol = filt.cap_convert(df_cyc, cell_info, 'volume', ['p_cap', 'n_cap', 'p_cap_std', 'n_cap_std'])
-
-# For each cell in data frame, convert mAh to mAh/cm2 (cell = 0 is the mean)
-df_cyc_areal = filt.cap_convert(df_cyc, cell_info, 'areal', ['p_cap', 'n_cap', 'p_cap_std', 'n_cap_std'])
-
-# Concatenate raw, mass and vol cycle capacity dataframes
-df_cyc = pd.concat([df_cyc, df_cyc_mass,  df_cyc_areal, df_cyc_vol], axis=1)
-
-df_cyc_reformat = filt.reformat(df_cyc)
 
 #df_cap_reformat.loc[idx[:],idx[:,param,:]]
 
@@ -263,7 +285,7 @@ print('--------------------------------------')
 # Plot voltage/current profiles
 if user_plot_fprofile == 1 :
     tic = time.perf_counter()
-    fig = plot_data.fprofile(df_voltage, user_cell, user_cycle, user_x, user_y, user_y2)
+    fig = plot_data.fprofile(df_processed, user_cell, user_cycle, user_x, user_y, user_y2)
     fig.show()
     toc = time.perf_counter()
     print(f"Plot generated in {toc - tic:0.1f}s")

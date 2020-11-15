@@ -239,10 +239,10 @@ def converter(param, cell_info, cell) :
         div = pi * ((cell_info['diameter'] / 20) ** 2)
         div = div * 1000 # Unit conversion allows same equation to convert to both mass, thickness and areal capacity
     elif param == 'mAh' :
-        div = 1
+        div = 1000
     return div
 
-def volt_convert(df, cell_info, param, col_slice) :
+def param_convert(df, cell_info, param, col_slice) :
     """Converts raw capacity values (or stds) to:
     1) Ah to mAh
     2) per g (param = 'mass')
@@ -259,54 +259,22 @@ def volt_convert(df, cell_info, param, col_slice) :
         dataframe -- the converted dataframe
     """
     idx = pd.IndexSlice
-    df_copy = df.loc[idx[:, :], idx[:, col_slice]].copy()
+    df_copy = df.loc[idx[:, :, :, :], col_slice].copy()
 
     for cell in df_copy.index.get_level_values(0).unique().values :
 
         if col_slice == 'all' :
-            data = df_copy.loc[idx[cell,:], :]
+            data = df_copy.loc[idx[cell,:,:,:], :]
         else :
-            data = df_copy.loc[idx[cell, :], idx[:, col_slice]]
+            data = df_copy.loc[idx[cell,:,:,:], col_slice]
 
         div = converter(param, cell_info, cell)
-        df_copy.update((data)/(div/1000))
+        df_copy.update((data*1000)/(div/1000))
 
-    df_copy.columns.set_levels([param],level=0,inplace=True)
+    df_copy = pd.concat([df_copy], axis=1, keys=[param])
 
     return df_copy
 
-def cap_convert(df, cell_info, param, col_slice) :
-    """Converts raw capacity values (or stds) to:
-    1) Ah to mAh
-    2) per g (param = 'mass')
-    3) per cm2 (param = 'areal')
-    4) per cm3 (param = 'volume')
-
-    Arguments:
-        df {dataframe} -- dataframe of cells, cycle number and capacity values/stds
-        cell_info {dict} -- cell information
-        param {str} -- passed to filt.converter function
-        col_slice {str or list} -- column headers in level=1 to index by
-
-    Returns:
-        dataframe -- the converted dataframe
-    """
-    idx = pd.IndexSlice
-    df_copy = df.loc[idx[:, :], idx[:, col_slice]].copy()
-
-    for cell in df_copy.index.get_level_values(0).unique().values :
-
-        if col_slice == 'all' :
-            data = df_copy.loc[idx[cell,:], :]
-        else :
-            data = df_copy.loc[idx[cell, :], idx[:, col_slice]]
-
-        div = converter(param, cell_info, cell)
-        df_copy.update((data)/(div/1000))
-
-    df_copy.columns.set_levels([param],level=0,inplace=True)
-
-    return df_copy
 
 def reformat(df_cap) :
     """Converts vertically concat data frame structure, i.e. cell and cycle index, to
