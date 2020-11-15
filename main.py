@@ -207,7 +207,6 @@ tic = time.perf_counter()
 # Drop unused columns and create multi index in column axis referring to 'raw' capacity
 df_volt = df_processed.drop(columns=drop_list)
 
-
 # Create list of dataframes of converted voltage vs capacity data and concat with raw dataframe
 volt_cnvrt_list = []
 for i, param in enumerate(param_list):
@@ -228,6 +227,8 @@ df_volt_cnvrt = pd.concat([univ_columns, df_volt_cnvrt], axis=1)
 
 toc = time.perf_counter()
 
+print(f"1 - Converted voltage data to mass, areal and volume format in {toc - tic:0.1f}s")
+
 # Save processed voltage profile data to csv files in */output folder
 if save_volt_indv[0] == 1 :
     tic = time.perf_counter()
@@ -246,6 +247,7 @@ print('--------------------------------------')
 
 tic = time.perf_counter()
 
+# Create list of dataframes of converted cycle vs capacity data and concat into dataframe
 cyc_cnvrt_list = []
 for i, param in enumerate(param_list):
   data_cnvrt = filt.param_convert(df_cyc, cell_info, param, ['p_cap', 'n_cap', 'p_cap_std', 'n_cap_std'])
@@ -253,6 +255,7 @@ for i, param in enumerate(param_list):
 
 df_cyc_cnvrt = pd.concat(cyc_cnvrt_list, axis=1)
 
+# Reformat dataframe into suitable format for csv export
 df_cyc_reformat = filt.reformat(df_cyc_cnvrt)
 
 # Create multi index in column axis referring to 'raw' capacity
