@@ -12,7 +12,7 @@ import sys
 ### Functions ###
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-def index(df) :
+def index(df, step_list, auto_cycle) :
     """Removes rest steps from data, changes step_index to 'pos' and 'neg' current labels and
        creates a multi-index based on cell, cycle_index, step_index and date_time
 
@@ -42,20 +42,65 @@ def index(df) :
     # Find indexes where the current reduces to 0 label them as 'rest' steps (probably need some extra checks here)
     last_current_list = df_last.index[df_last == 0].tolist()
     if last_current_list :
-        df.loc[df_last.index[df_last == 0].tolist(), 'new_index'] = 'rest'
-        print('3 - Dropped indexes that have \'current = 0\' in any row.')
+        df.loc[last_current_list, 'temp_index'] = 'rest'
+        df.loc[last_current_list, 'new_index'] = 'rest'
+        print('3 - Marked indexes that have \'current = 0\' in any row as rest step.')
     else :
         print('3 - No indexes that have \'current = 0\' in any row detected.')
 
     # Group filtered data by the mean of each step_index and assign 'pos' or 'neg' labels to the new column 'new_index'
     df_mean = df.groupby(['cell', 'cycle_index', 'step_index'])['current'].mean()
     df_mean.drop(df_last.index[df_last == 0].tolist(), inplace=True)
+    df.loc[df_mean.index[df_mean > 0].tolist(), 'temp_index'] = 1
+    df.loc[df_mean.index[df_mean < 0].tolist(), 'temp_index'] = 2
     df.loc[df_mean.index[df_mean > 0].tolist(), 'new_index'] = 'pos'
     df.loc[df_mean.index[df_mean < 0].tolist(), 'new_index'] = 'neg'
+    df.set_index(['temp_index'], inplace=True, append=True)
+
+    # Filter for cycle index in case no change in cycle recorded in arbin routine
+    test = df.index.unique().tolist()
+
+    # Creates list to ensure constant voltage steps do not trigger cycle number increase
+    lst = []
+    for row,data in enumerate(test):
+        if row == 0:
+            lst.append(test[row][2])
+        elif test[row-1][0] == test[row][0] and test[row-1][1] == test[row][1] and test[row-1][3] == test[row][3]:
+            lst.append(test[row-1][2])
+        else:
+            lst.append(test[row][2])
+
+    # Creates list to increase cycle number based on current changing sign twice, ignoring adjacent steps
+    lst2 = []
+    cycle_count = 1
+    for row,data in enumerate(test):
+        row_curr = test[row][3]
+        if row == 0:
+            lst2.append(cycle_count)
+        elif test[row-1][0] != test[row][0]:
+            cycle_count = 1
+            lst2.append(cycle_count)
+        elif row_curr == test[0][3] and lst[row] != lst[row-1] and test[row-1][0] == test[row][0]:
+            cycle_count = cycle_count+1
+            lst2.append(cycle_count)
+        else:
+            lst2.append(cycle_count)
+
+    # Create new column in dataframe for auto generated cycle number
+    for row,idx in enumerate(df.index.unique().tolist()):
+        df.loc[idx, 'auto_index'] = lst2[row]
+
+        for row2,tupe in enumerate(step_list):
+            if set((idx[1],idx[2])).issubset(tupe):
+                df.loc[idx, 'auto_index'] = step_list[row2][2]
+
+    df['auto_index'] = df['auto_index'].astype(int)
 
     # Remove old step_index from df and reindex with 'new_index'
     df.reset_index(level='step_index',inplace=True,drop=True)
-    df.set_index(['date_time', 'new_index'], inplace=True, append=True)
+    df.reset_index(level='cycle_index',inplace=True,drop=True)
+    df.reset_index(level='temp_index',inplace=True,drop=True)
+    df.set_index(['auto_index','date_time', 'new_index'], inplace=True, append=True)
     df.index.names = ['cell', 'cycle_index', 'date_time', 'step_index']
     df.sort_index(inplace=True)
 

@@ -35,9 +35,9 @@ folder_select = 1
 save_indexed = 0
 save_decimated = 0
 #save_cycle_data = 1
-save_volt_indv = [0,'mass']
-save_cycle_data_combined = 0
-save_cycle_data_indv = [0,'mass']
+save_volt_indv = [1,['mass']]
+save_cyc_combined = 0
+save_cyc_indv = [1,['mass']]
 param_list = ['mAh','mass','volume','areal']
 
 # Data processing
@@ -60,6 +60,10 @@ user_cyc_y = 'p_cap'
 user_cap_param = 'mass'
 user_cyc_y2 = 0
 
+# Step list
+step_list = [(1,21,5),
+             (1,22,5)]
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 ### Script ###
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
@@ -76,7 +80,9 @@ if folder_select == 0 :
     data_folder = Path(data_paths[0]).parent
 else:
     # Open dialog box to select folder
-    Tk().withdraw()  # stops root window from appearing
+    root = Tk()
+    root.attributes("-topmost", True)
+    root.withdraw()  # stops root window from appearing
     data_folder = askdirectory(title="Choose data folder")  # "Open" dialog box and return the selected path
     data_paths = list(Path(data_folder).glob('*.csv'))
     data_folder = Path(data_paths[0]).parent
@@ -108,6 +114,9 @@ print('Dataframe size: {}'.format(df_raw.size))
 # Data filtering
 #------------------------
 
+#df = df_raw
+#sys.exit()
+
 if raw :
     print('--------------------------------------')
     print('Data filtering')
@@ -115,7 +124,7 @@ if raw :
 
     tic = time.perf_counter()
     # Call index function on raw dataframe
-    df_indexed = filt.index(df_raw)
+    df_indexed = filt.index(df_raw, step_list, 'yes')
     toc = time.perf_counter()
     print(f"4 - Created new index in {toc - tic:0.1f}s")
 
@@ -123,7 +132,7 @@ if raw :
     if save_indexed == 1 :
         tic = time.perf_counter()
 
-        message, success = save.multi(df_indexed, data_folder, data_paths, 'indexed', 'indexed')
+        message, success = save.multi(df_indexed, data_folder, data_paths, cell_info, 'indexed', 'normal', ['cell','date_time'], 'indexed')
         cell_info['filtered'] = 1
         save.yml(cell_info, 'indexed', data_folder, info_path)
 
@@ -155,7 +164,7 @@ if user_decimate == 1 :
     if save_decimated == 1 :
         tic = time.perf_counter()
 
-        message, success = save.multi(df_indexed, data_folder, data_paths, 'decimated', 'decimated')
+        message, success = save.multi(df_indexed, data_folder, data_paths, cell_info, 'decimated', 'normal', ['cell','date_time'], 'decimated')
         cell_info['decimated'] = 1
         save.yml(cell_info, 'decimated', data_folder, info_path)
 
@@ -223,21 +232,22 @@ df_volt = pd.concat([univ, raw], axis=1, keys=['univ','raw'])
 
 # Concatenate universal columns and converted capacities
 univ_columns = df_volt.loc[idx[:, :, :, :], idx['univ',:]]
-df_volt_cnvrt = pd.concat([univ_columns, df_volt_cnvrt], axis=1)
+df_volt = pd.concat([df_volt, df_volt_cnvrt], axis=1)
 
 toc = time.perf_counter()
 
-print(f"1 - Converted voltage data to mass, areal and volume format in {toc - tic:0.1f}s")
+print(f"1 - Converted voltage data to mAh, mass, areal and volume format in {toc - tic:0.1f}s")
 
 # Save processed voltage profile data to csv files in */output folder
 if save_volt_indv[0] == 1 :
     tic = time.perf_counter()
 
-    message, success = save.multi(df_volt, data_folder, data_paths, 'output', 'voltage')
+    for param in save_volt_indv[1]:
+        message, success = save.multi(df_volt.loc[:, idx[['univ',param],:]], data_folder, data_paths, cell_info, 'output', 'voltage', ['cell','date_time'], 'voltage_'+param)
 
     toc = time.perf_counter()
     if success == 1 :
-        print(f"2 - Saved indexed voltage profile data to '*/output' in {toc - tic:0.1f}s")
+        print(f"2 - Saved converted voltage profile data to '*/output' in {toc - tic:0.1f}s")
     else :
         print(message)
 
@@ -253,27 +263,38 @@ for i, param in enumerate(param_list):
   data_cnvrt = filt.param_convert(df_cyc, cell_info, param, ['p_cap', 'n_cap', 'p_cap_std', 'n_cap_std'])
   cyc_cnvrt_list.append(data_cnvrt)
 
-df_cyc_cnvrt = pd.concat(cyc_cnvrt_list, axis=1)
+df_cyc = pd.concat([df_cyc.drop(['p_curr','n_curr'],axis=1)], axis=1, keys=['raw'])
+
+df_cyc = pd.concat([df_cyc,pd.concat(cyc_cnvrt_list, axis=1)], axis=1)
 
 # Reformat dataframe into suitable format for csv export
-df_cyc_reformat = filt.reformat(df_cyc_cnvrt)
-
-# Create multi index in column axis referring to 'raw' capacity
-df_cyc = pd.concat([df_cyc], axis=1, keys=['raw'])
-df_cyc.sort_index(inplace=True)
+df_cyc_reformat = filt.reformat(df_cyc)
 
 #df_cap_reformat.loc[idx[:],idx[:,param,:]]
 
 toc = time.perf_counter()
 
-print(f"1 - Converted cycle data to mass, areal and volume format in {toc - tic:0.1f}s")
+print(f"1 - Converted cycle data to mAh, mass, areal and volume format in {toc - tic:0.1f}s")
 
-if save_cycle_data_combined == 1 :
+if save_cyc_combined == 1 :
     tic = time.perf_counter()
     message, success = save.param_filter(df_cyc_reformat, data_folder, data_paths, cell_info, 'output')
     toc = time.perf_counter()
     if success == 1 :
         print(f"2 - Saved formatted cycle data to '*/output' in {toc - tic:0.1f}s")
+    else :
+        print(message)
+
+# Save processed voltage profile data to csv files in */output folder
+if save_cyc_indv[0] == 1 :
+    tic = time.perf_counter()
+
+    for param in save_cyc_indv[1]:
+        message, success = save.multi(df_cyc_reformat.loc[:, idx[:,param,:]], data_folder, data_paths, cell_info, 'output', 'reformat', ['cell','date_time'], 'cyc_'+param)
+
+    toc = time.perf_counter()
+    if success == 1 :
+        print(f"2 - Saved converted cycle data to '*/output' in {toc - tic:0.1f}s")
     else :
         print(message)
 
@@ -329,5 +350,5 @@ if user_plot_cycle == 1 :
 #Debug
 #idx = pd.IndexSlice
 #df_cyc.loc[idx[1, 1], idx['raw', 'p_curr']]
-#df_cyc_reformat.loc[idx[:], idx[:,'mAh', ('p_cap','p_cap_std')]]
+#df_cyc_reformat.loc[:, idx[:,'mAh', ('p_cap','p_cap_std')]]
 

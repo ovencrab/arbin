@@ -10,7 +10,7 @@ import sys
 ### Functions ###
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-def multi(df, data_folder, data_paths, filt_string, suffix) :
+def multi(df, data_folder, data_paths, cell_info, filt_string, df_type, drop_levels, prefix) :
     """Saves dataframe to a csv file per cell number
 
     Arguments:
@@ -22,15 +22,23 @@ def multi(df, data_folder, data_paths, filt_string, suffix) :
     Returns:
         Exception error messages
     """
+    idx = pd.IndexSlice
+
     try :
         if filt_string != 'none' :
             data_folder = data_folder.joinpath(filt_string)
             if not data_folder.is_dir() :
                     data_folder.mkdir(parents=True, exist_ok=True)
         try :
-            for i, data in enumerate(df.groupby(level='cell')) :
-                data[1].reset_index(level=['cell','date_time'],drop=True).to_csv(data_folder.joinpath('{}_{}.csv'.format(data_paths[i].stem,
-                                                                                suffix)), encoding='utf-8')
+            if df_type == 'voltage':
+                for i, data in enumerate(df.groupby(level='cell')) :
+                    data[1].reset_index(level=drop_levels,drop=True).to_csv(data_folder.joinpath('{}_{}.csv'.format(prefix,data_paths[i].stem)), encoding='utf-8')
+            elif df_type == 'reformat':
+                for i, cell in enumerate(df.columns.levels[0]):
+                    if cell == 0 :
+                        df.loc[:, idx[cell,:,:]].to_csv(data_folder.joinpath('{}_{}.csv'.format(prefix,cell_info['name'])), encoding='utf-8')
+                    else :
+                        df.loc[:, idx[cell,:,:]].to_csv(data_folder.joinpath('{}_{}.csv'.format(prefix,data_paths[cell-1].stem)), encoding='utf-8')
         except :
             message = "ERROR: Couldn't create or overwrite {} csv files".format(filt_string)
             return message, 0
