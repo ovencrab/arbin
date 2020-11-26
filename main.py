@@ -36,7 +36,7 @@ save_indexed = 0
 save_decimated = 0
 #save_cycle_data = 1
 save_volt_indv = [1,['mass']]
-save_cyc_combined = 0
+save_cyc_combined = 1
 save_cyc_indv = [1,['mass']]
 param_list = ['mAh','mass','volume','areal']
 
@@ -114,9 +114,6 @@ print('Dataframe size: {}'.format(df_raw.size))
 # Data filtering
 #------------------------
 
-#df = df_raw
-#sys.exit()
-
 if raw :
     print('--------------------------------------')
     print('Data filtering')
@@ -144,39 +141,6 @@ if raw :
             print(message)
 
 #------------------------
-# Downsampling
-#------------------------
-
-if user_decimate == 1 :
-    print('--------------------------------------')
-    print('Decimating data')
-    print('--------------------------------------')
-
-    tic = time.perf_counter()
-    # Call decimate function on dataframe
-    df_decimate, counter = filt.decimate(df_indexed, row_target)
-    toc = time.perf_counter()
-    t = f'{toc - tic:0.1f}'
-    print('{} - Reduced number of rows from {} to {} in {}s'.format(counter, df_indexed.shape[0], df_decimate.shape[0],t))
-    df_indexed = df_decimate
-
-    # Save decimated data to csv files in */decimated folder
-    if save_decimated == 1 :
-        tic = time.perf_counter()
-
-        message, success = save.multi(df_indexed, data_folder, data_paths, cell_info, 'decimated', 'normal', ['cell','date_time'], 'decimated')
-        cell_info['decimated'] = 1
-        save.yml(cell_info, 'decimated', data_folder, info_path)
-
-        toc = time.perf_counter()
-        t = f'{toc - tic:0.1f}'
-
-        if success == 1 :
-            print('{} - Saved files in {}s'.format(counter+1,t))
-        else :
-            print(message)
-
-#------------------------
 # Capacity calculations
 #------------------------
 
@@ -185,8 +149,22 @@ print('Calculating capacity and cycle data')
 print('--------------------------------------')
 
 tic = time.perf_counter()
-# Call function to filter data into capacity per cycle
+# Call function to filter data into capacity per step index
 df_cyc, df_processed = filt.cap(df_indexed, n_cells)
+
+# Fill NaN and combined columns
+df_cyc.fillna(0,inplace=True)
+df_cyc2 = pd.DataFrame(columns=['current', 'cap', 'cap_std'])
+df_cyc2['current'] = df_cyc['p_curr'] + df_cyc['n_curr']
+df_cyc2['cap'] = df_cyc['p_cap'] + df_cyc['n_cap']
+df_cyc2['cap_std'] = df_cyc['p_cap_std'] + df_cyc['n_cap_std']
+df_cyc = df_cyc2
+
+# Create pos and neg index column
+df_cyc.loc[df_cyc.index[df_cyc['current']<0].tolist(), 'new_index'] = 'neg'
+df_cyc.loc[df_cyc.index[df_cyc['current']>0].tolist(), 'new_index'] = 'pos'
+df_cyc.set_index(['new_index'], inplace=True, append=True)
+df_cyc.index.names = ['cell', 'step_index', 'step_type']
 
 # Update cell_info with new average cell
 cell_info['cell'].insert(0, 0)
@@ -215,23 +193,24 @@ tic = time.perf_counter()
 
 # Drop unused columns and create multi index in column axis referring to 'raw' capacity
 df_volt = df_processed.drop(columns=drop_list)
+df_volt.set_index(['date_time'], inplace=True, append=True)
+df_volt.sort_index(inplace=True)
 
 # Create list of dataframes of converted voltage vs capacity data and concat with raw dataframe
 volt_cnvrt_list = []
 for i, param in enumerate(param_list):
-  data_cnvrt = filt.param_convert(df_volt, cell_info, param, ['p_cap', 'n_cap'])
+  data_cnvrt = filt.param_convert_volt(df_volt, cell_info, param, ['p_cap', 'n_cap'])
   volt_cnvrt_list.append(data_cnvrt)
 
 df_volt_cnvrt = pd.concat(volt_cnvrt_list, axis=1)
 
 # Create multiindex for raw data and universal columns (voltage, current)
 universal_cols = ['step_time','voltage','current']
-univ = df_volt.loc[idx[:, :, :, :], universal_cols]
-raw = df_volt.loc[idx[:, :, :, :], ['p_cap','n_cap']]
-df_volt = pd.concat([univ, raw], axis=1, keys=['univ','raw'])
+univ_volt = df_volt.loc[idx[:, :, :, :], universal_cols]
+raw_volt = df_volt.loc[idx[:, :, :, :], ['p_cap','n_cap']]
+df_volt = pd.concat([univ_volt, raw_volt], axis=1, keys=['univ','raw'])
 
 # Concatenate universal columns and converted capacities
-univ_columns = df_volt.loc[idx[:, :, :, :], idx['univ',:]]
 df_volt = pd.concat([df_volt, df_volt_cnvrt], axis=1)
 
 toc = time.perf_counter()
@@ -256,15 +235,20 @@ print('Convert cycle data to other formats')
 print('--------------------------------------')
 
 tic = time.perf_counter()
+save_count = 1
 
 # Create list of dataframes of converted cycle vs capacity data and concat into dataframe
 cyc_cnvrt_list = []
 for i, param in enumerate(param_list):
-  data_cnvrt = filt.param_convert(df_cyc, cell_info, param, ['p_cap', 'n_cap', 'p_cap_std', 'n_cap_std'])
+  data_cnvrt = filt.param_convert_cap(df_cyc, cell_info, param, ['cap','cap_std'])
   cyc_cnvrt_list.append(data_cnvrt)
 
-df_cyc = pd.concat([df_cyc.drop(['p_curr','n_curr'],axis=1)], axis=1, keys=['raw'])
+# Set column index for original raw data
+univ_cyc = df_cyc.loc[idx[:, :, :], 'current']
+raw_cyc = df_cyc.loc[idx[:, :, :], ['cap','cap_std']]
+df_cyc = pd.concat([univ_cyc, raw_cyc], axis=1, keys=['univ','raw'])
 
+# Concatenate raw data with param data
 df_cyc = pd.concat([df_cyc,pd.concat(cyc_cnvrt_list, axis=1)], axis=1)
 
 # Reformat dataframe into suitable format for csv export
@@ -274,14 +258,16 @@ df_cyc_reformat = filt.reformat(df_cyc)
 
 toc = time.perf_counter()
 
-print(f"1 - Converted cycle data to mAh, mass, areal and volume format in {toc - tic:0.1f}s")
+print(f"{save_count} - Converted cycle data to mAh, mass, areal and volume format in {toc - tic:0.1f}s")
+save_count = save_count + 1
 
 if save_cyc_combined == 1 :
     tic = time.perf_counter()
-    message, success = save.param_filter(df_cyc_reformat, data_folder, data_paths, cell_info, 'output')
+    message, success = save.param_filter(df_cyc_reformat, data_folder, data_paths, cell_info, 'output', param_list)
     toc = time.perf_counter()
     if success == 1 :
-        print(f"2 - Saved formatted cycle data to '*/output' in {toc - tic:0.1f}s")
+        print(f"{save_count} - Saved formatted cycle data to '*/output' in {toc - tic:0.1f}s")
+        save_count = save_count + 1
     else :
         print(message)
 
@@ -290,13 +276,16 @@ if save_cyc_indv[0] == 1 :
     tic = time.perf_counter()
 
     for param in save_cyc_indv[1]:
-        message, success = save.multi(df_cyc_reformat.loc[:, idx[:,param,:]], data_folder, data_paths, cell_info, 'output', 'reformat', ['cell','date_time'], 'cyc_'+param)
+        message, success = save.multi(df_cyc_reformat.loc[:, idx[:,['univ',param],:]], data_folder, data_paths, cell_info, 'output', 'reformat', ['cell','date_time'], 'cyc_'+param)
 
     toc = time.perf_counter()
     if success == 1 :
-        print(f"2 - Saved converted cycle data to '*/output' in {toc - tic:0.1f}s")
+        print(f"{save_count} - Saved converted cycle data to '*/output' in {toc - tic:0.1f}s")
+        save_count = save_count + 1
     else :
         print(message)
+
+sys.exit()
 
 #------------------------
 # Plotting test
