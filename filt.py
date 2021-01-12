@@ -12,7 +12,7 @@ import sys
 ### Functions ###
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-def index(df, step_list, auto_cycle) :
+def index(df, auto_cycle) :
     """Removes rest steps from data, changes step_index to 'pos' and 'neg' current labels and
        creates a multi-index based on cell, cycle_index, step_index and date_time
 
@@ -162,7 +162,11 @@ def sub_cap(df, df_grpd, col):
         p_step_init = df_grpd.index.get_level_values(1)[0]
 
         range_list=[]
-        steps = df_grpd.loc[idx[cell,:]].index.get_level_values(1)
+        if len(df.index.get_level_values(0).unique().values) > 1:
+            steps = df_grpd.loc[idx[cell,:]].index.get_level_values(1)
+        else:
+            steps = df_grpd.loc[idx[cell,:]].index.get_level_values(0)
+
         for i,x in enumerate(steps):
             if i == 0:
                 lst = list(range(x+1))
@@ -225,6 +229,7 @@ def param_convert_volt(df, cell_info, param, col_slice) :
 
     for cell in df_copy.index.get_level_values(0).unique().values :
         data = df_copy.xs(cell, level=0, drop_level=False)
+        data.reindex()
         div = converter(param, cell_info, cell)
         df_copy.update((data*1000)/(div/1000))
 

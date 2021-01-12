@@ -47,7 +47,7 @@ drop_list = ['test_time','charge_cumulative','discharge_cumulative',
             'charge_energy','discharge_energy','ACR','int_resistance','dv/dt']
 
 # Plot config
-user_plot_fprofile = 1
+user_plot_fprofile = 0
 user_cell = 1
 user_cycle = '1-2' # 0 plots all cycles # '2-5' to plot cycles 2 to 5
 user_x = 'test_time'
@@ -114,14 +114,64 @@ print('Dataframe size: {}'.format(df_raw.size))
 # Data filtering
 #------------------------
 
-if raw :
-    print('--------------------------------------')
-    print('Data filtering')
-    print('--------------------------------------')
+print('--------------------------------------')
+print('Data filtering')
+print('--------------------------------------')
 
+# Create list of cycle and step indexes per cell
+index_list = []
+for cell in range(len(data_paths)):
+    index_list.append(df_raw.loc[cell+1].index.unique())
+
+# Create lists of starting cycle index per cell
+cycle_start_list = []
+for cell in range(len(data_paths)):
+    cycle_start_list.append(index_list[cell][0][0])
+
+# Find first shared cycle index between cells
+if len(set(cycle_start_list)) != 1:
+    cycle_start = max(cycle_start_list)
+    cycle_start_index = cycle_start_list.index(cycle_start)
+
+    for cell in range(len(data_paths)):
+        drop_index = df_raw.loc[idx[cell+1,cycle_start-1,:],idx[:]].index.unique()
+        try:
+            drop_index[0]
+            df_raw.drop(drop_index,inplace=True)
+        except:
+            pass
+
+    cycle_drop = 'Cycles below cycle {} removed.'.format(cycle_start)
+else:
+    cycle_start = cycle_start_list[0]
+    cycle_drop = 'No cycles removed.'
+
+# Create list of starting step index per cell
+step_start_list = []
+for cell in range(len(data_paths)):
+    step_start_list.append(index_list[cell][0][1])
+
+# Find first shared step index between cells
+if len(set(step_start_list)) != 1:
+    step_start = max(step_start_list)
+    for cell in range(len(data_paths)):
+        drop_index = df_raw.loc[idx[cell+1,cycle_start,1:step_start-1],idx[:]].index.unique()
+        try:
+            drop_index[0]
+            df_raw.drop(drop_index,inplace=True)
+        except:
+            pass
+
+    step_drop = 'Steps below step {} removed.'.format(step_start)
+else:
+    step_drop = 'No steps removed.'
+
+print(cycle_drop, step_drop)
+
+if raw :
     tic = time.perf_counter()
     # Call index function on raw dataframe
-    df_indexed = filt.index(df_raw, step_list, 'yes')
+    df_indexed = filt.index(df_raw, 'yes')
     toc = time.perf_counter()
     print(f"4 - Created new index in {toc - tic:0.1f}s")
 
@@ -154,10 +204,15 @@ df_cyc, df_processed = filt.cap(df_indexed, n_cells)
 
 # Fill NaN and combined columns
 df_cyc.fillna(0,inplace=True)
-df_cyc2 = pd.DataFrame(columns=['current', 'cap', 'cap_std'])
+
+if 0 in df_cyc.index.get_level_values(0).unique().values:
+    df_cyc2 = pd.DataFrame(columns=['current', 'cap', 'cap_std'])
+    df_cyc2['cap_std'] = df_cyc['p_cap_std'] + df_cyc['n_cap_std']
+else:
+    df_cyc2 = pd.DataFrame(columns=['current', 'cap'])
+
 df_cyc2['current'] = df_cyc['p_curr'] + df_cyc['n_curr']
 df_cyc2['cap'] = df_cyc['p_cap'] + df_cyc['n_cap']
-df_cyc2['cap_std'] = df_cyc['p_cap_std'] + df_cyc['n_cap_std']
 df_cyc = df_cyc2
 
 # Create pos and neg index column
@@ -195,6 +250,7 @@ tic = time.perf_counter()
 df_volt = df_processed.drop(columns=drop_list)
 df_volt.set_index(['date_time'], inplace=True, append=True)
 df_volt.sort_index(inplace=True)
+df_volt = df_volt[~df_volt.index.duplicated(keep='first')]
 
 # Create list of dataframes of converted voltage vs capacity data and concat with raw dataframe
 volt_cnvrt_list = []
@@ -239,13 +295,19 @@ save_count = 1
 
 # Create list of dataframes of converted cycle vs capacity data and concat into dataframe
 cyc_cnvrt_list = []
+
+if 0 in df_cyc.index.get_level_values(0).unique().values:
+        col_list = ['cap','cap_std']
+else:
+        col_list = ['cap']
+
 for i, param in enumerate(param_list):
-  data_cnvrt = filt.param_convert_cap(df_cyc, cell_info, param, ['cap','cap_std'])
-  cyc_cnvrt_list.append(data_cnvrt)
+    data_cnvrt = filt.param_convert_cap(df_cyc, cell_info, param, col_list)
+    cyc_cnvrt_list.append(data_cnvrt)
 
 # Set column index for original raw data
 univ_cyc = df_cyc.loc[idx[:, :, :], 'current']
-raw_cyc = df_cyc.loc[idx[:, :, :], ['cap','cap_std']]
+raw_cyc = df_cyc.loc[idx[:, :, :], col_list]
 df_cyc = pd.concat([univ_cyc, raw_cyc], axis=1, keys=['univ','raw'])
 
 # Concatenate raw data with param data
@@ -271,7 +333,7 @@ if save_cyc_combined == 1 :
     else :
         print(message)
 
-# Save processed voltage profile data to csv files in */output folder
+# Save processed cycle data to csv files in */output folder
 if save_cyc_indv[0] == 1 :
     tic = time.perf_counter()
 
@@ -284,8 +346,6 @@ if save_cyc_indv[0] == 1 :
         save_count = save_count + 1
     else :
         print(message)
-
-sys.exit()
 
 #------------------------
 # Plotting test
