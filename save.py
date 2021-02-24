@@ -10,9 +10,8 @@ import sys
 ### Functions ###
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-def get_name(data_path):
-    name = data_path.stem.split("_")
-    name = name[0]+'_'+name[1]+'_'+name[2]+'_'+name[3]
+def get_name(cell_info,cell_num):
+    name = cell_info['name']+'_cell_'+str(cell_info['cell'][cell_num])
     return name
 
 def get_name_custom(data_path,cell_info,suffix):
@@ -42,15 +41,17 @@ def multi(df, data_folder, data_paths, cell_info, filt_string, df_type, drop_lev
         try :
             if df_type == 'voltage':
                 for i, data in enumerate(df.groupby(level='cell')) :
-                    name = get_name(data_paths[i])
+                    name = get_name(cell_info,i+1)
+                    print(name)
                     data[1].reset_index(level=drop_levels,drop=True).to_csv(data_folder.joinpath('{}_{}.csv'.format(prefix,name)), encoding='utf-8')
             elif df_type == 'reformat':
                 for i, cell in enumerate(df.columns.levels[0]):
                     if cell == 0 :
                         name = get_name_custom(data_paths[0],cell_info,'avg')
+                        print(name)
                         df.loc[idx[:,:], idx[cell,:,:]].to_csv(data_folder.joinpath('{}_{}.csv'.format(prefix,name)), encoding='utf-8')
                     else :
-                        name = get_name(data_paths[cell-1])
+                        name = get_name(cell_info,cell)
                         df.loc[idx[:,:], idx[cell,:,:]].to_csv(data_folder.joinpath('{}_{}.csv'.format(prefix,name)), encoding='utf-8')
         except :
             message = "ERROR: Couldn't create or overwrite {} csv files".format(filt_string)
