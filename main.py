@@ -15,6 +15,7 @@ import time
 
 ### Import functions ###
 import filt
+import save
 
 ### Indexing ###
 idx=pd.IndexSlice
@@ -27,13 +28,15 @@ col_rename = ['time','cycle','step','I','E','Qp','Qn']
 
 ### Options ###
 
+xlsx = True # Takes longer to read than csv files
 cell_rename = True
-cv_cut = 1.1 #(minimum ratio between CC current vs CV current)
+cv_cut = 1.1 # (minimum ratio between CC current vs CV current)
 avg_calc = True
-avg_name = 'JE_210128_WP0_form_avg'
-param_output_cap = ['mAh','mass','areal'] # mAh, mass, areal, volume
-param_plot_volt = ['mAh']
-param_plot_cap = ['mAh']
+avg_name = 'JE_210128_WP0_form'
+param_output_cap = ['mAh','mass','areal','volume'] # mAh, mass, areal, volume
+
+save_indv = False
+save_average = True
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 ### Script ###
@@ -57,6 +60,7 @@ for index, fpath in enumerate(data_paths):
         info_file = fpath
         info_index = index
 
+# Remove cell_info file path from data_paths and read cell_info into df
 if 'info_index' in locals():
     del data_paths[info_index]
     cell_info = pd.read_csv(info_file)
@@ -70,7 +74,10 @@ else:
     for i, fpath in enumerate(data_paths):
         cell_info.loc[i] = data_paths[i].stem
 
-print('{} - Imported {} arbin data files'.format(c,len(data_paths)))
+if xlsx:
+    data_paths = list(Path(raw_folder).glob('*.xlsx'))
+
+print('{} - Imported {} data paths and {} rows of cell information'.format(c,len(data_paths),len(cell_info)))
 
 print('--------------------- Cell information -----------------')
 
@@ -107,7 +114,7 @@ if not missing_info:
         print('{} - Missing diameter column - areal and volume conversion disabled'.format(c))
         c=c+1
 
-    # Check columns in cell_info contain data allowing conversions. If not, remove request for conversion.
+    # Check rows in cell_info contain data allowing conversions. If not, remove request for conversion.
     for column in columns:
         empty_idx = cell_info[ (cell_info[column].isnull()) | (cell_info[column]=='') ].index
         if len(empty_idx) > 0:
@@ -136,7 +143,18 @@ lst_df_cap = []
 c = 0
 for fpath in data_paths:
     # Read raw data into dataframe, rename columns and set cycle and step as index
-    df = pd.read_csv(fpath,usecols=raw_cols)[raw_cols]
+    if xlsx:
+        xls = pd.ExcelFile(fpath,engine='openpyxl')
+        data_sheet = [i for i, sht_name in enumerate(xls.sheet_names) if 'Channel' in sht_name]
+        if len(data_sheet) == 1:
+            data_sheet = data_sheet[0]
+            df = xls.parse(data_sheet,usecols=raw_cols)[raw_cols]
+        else:
+            print("Multiple 'Channel' data sheets in xlsx file, check xlsx file:")
+            sys.exit("{}".format(fpath))
+    else:
+        df = pd.read_csv(fpath,usecols=raw_cols)[raw_cols]
+
     df.columns = col_rename
     df.set_index(['cycle','step'],inplace=True)
 
@@ -197,6 +215,7 @@ for fpath in data_paths:
     lst_df.append(df)
     lst_df_cap.append(df_cap)
 
+# Calculate average data
 if avg_calc:
     df_cap_temp = pd.concat(lst_df_cap)
     df_cap_avg = df_cap_temp.groupby(['cycle', 'step','step_type'])['I','Qp','Qn'].mean()
@@ -204,6 +223,7 @@ if avg_calc:
     df_cap_std.columns = ['Qp_std', 'Qn_std']
     df_cap_avg = pd.concat([df_cap_avg, df_cap_std], axis=1)
 
+    # Create average cell_info
     d = {'name': avg_name}
     new_row = pd.Series(data=d, index=['name'])
     new_df = cell_info.mean().to_frame()
@@ -216,7 +236,7 @@ if avg_calc:
 # --------------------------- File output ---------------------------
 print('--------------------- File output ----------------------')
 
-c = 0
+c=0
 # Create output folder
 if not output_folder.is_dir() :
     try:
@@ -230,20 +250,23 @@ else:
     print("{} - Output folder already exists, trying to save files:".format(c))
     c=c+1
 
-# Save capacity conversions - converts all columns apart from 'I' to divider type (i.e. 'mass')
-for i, df_cap in enumerate(lst_df_cap):
+# --------------------------- Averaged data ---------------------------
+if save_average:
+    print('--------------------- Averaged data -------------------')
+
+    c=0
+    # Save averaged data. One file per param.
     df_param_list = []
     for p,param in enumerate(param_output_cap):
-        df_conv = filt.converter(df_cap,param,cell_info.loc[i],'I')
-        try:
-            df_conv.to_csv(output_folder.joinpath('{}_{}.csv'.format(param,cell_info.loc[i]['name'])),
-                           encoding='utf-8')
-            print("{} - Saved {} conversion of '{}'".format(c,param,cell_info['name'][i]))
-            c=c+1
-        except:
-            print("{} - Error: Could not save '{}'".format(c,cell_info['name'][i]))
-            c=c+1
+        df_conv = filt.converter(df_cap_avg,param,cell_info_avg.loc[0],'I')
 
+        if save_indv & save_average:
+            c = save.single(df_conv, output_folder, c,
+                            'avg_{}_{}.csv'.format(param,cell_info_avg.loc[0]['name']),
+                            "{} - Saved {} conversion of '{}'".format(c,param,cell_info_avg.loc[0]['name']),
+                            "{} - Error: Could not save '{}'".format(c,cell_info_avg.loc[0]['name']))
+
+        # Create list of param converted dataframes for concatenation. Append param to column names.
         if p == 0:
             df_param = df_conv.copy()
             df_param.columns = ['{}{}'.format(col, '' if col in 'I' else '_{}'.format(param)) for col in df_param.columns]
@@ -252,17 +275,69 @@ for i, df_cap in enumerate(lst_df_cap):
 
         df_param_list.append(df_param)
 
+    # Output concatenated df of data frames converted by param and per cycle data. If only one param, only output per cycle data.
     if len(param_output_cap) > 1:
         df_param = pd.concat(df_param_list, axis=1)
-        df_param.to_csv(output_folder.joinpath('params_{}.csv'.format(cell_info.loc[i]['name'])),
-                    encoding='utf-8')
-        df_param.drop('I',axis=1).groupby(['cycle']).sum().to_csv(output_folder.joinpath('params_cycle_{}.csv'.format(cell_info.loc[i]['name'])),
-                    encoding='utf-8')
-        print("{} - Saved conversion summarys of '{}'".format(c,cell_info['name'][i]))
-        c=c+1
+
+        c = save.single(df_param, output_folder, c,
+                        'avg_params_{}.csv'.format(cell_info_avg.loc[0]['name']),
+                        "{} - Saved combined conversion of '{}'".format(c,cell_info_avg.loc[0]['name']),
+                        "{} - Error: Could not save combined conversion of '{}'".format(c,cell_info_avg.loc[0]['name']))
+
+        c = save.single(df_param.drop('I',axis=1).groupby(['cycle']).sum(), output_folder, c,
+                        'avg_params_cycle_{}.csv'.format(cell_info_avg.loc[0]['name']),
+                        "{} - Saved per cycle combined conversion of '{}'".format(c,cell_info_avg.loc[0]['name']),
+                        "{} - Error: Could not save per cycle combined conversion of '{}'".format(c,cell_info_avg.loc[0]['name']))
     else:
-        df_param.drop('I',axis=1).groupby(['cycle']).sum().to_csv(output_folder.joinpath('params_cycle_{}.csv'.format(cell_info.loc[i]['name'])),
-                    encoding='utf-8')
+        c = save.single(df_param.drop('I',axis=1).groupby(['cycle']).sum(), output_folder, c,
+                        'avg_params_cycle_{}.csv'.format(cell_info_avg.loc[0]['name']),
+                        "{} - Saved per cycle {} conversion of '{}'".format(c,param,cell_info_avg.loc[0]['name']),
+                        "{} - Error: Could not save per cycle {} conversion of '{}'".format(c,param,cell_info_avg.loc[0]['name']))
+
+# --------------------------- 'per cell' data ---------------------------
+if save_average:
+    print("--------------------- 'per cell' data -------------------")
+
+c=0
+# Save capacity conversions - converts all mAh columns to divider type (i.e. 'mass')
+for i, df_cap in enumerate(lst_df_cap):
+    df_param_list = []
+    for p,param in enumerate(param_output_cap):
+        df_conv = filt.converter(df_cap,param,cell_info.loc[i],'I')
+
+        if save_indv:
+            c = save.single(df_conv, output_folder, c,
+                            '{}_{}.csv'.format(param,cell_info.loc[i]['name']),
+                            "{} - Saved {} conversion of '{}'".format(c,param,cell_info['name'][i]),
+                            "{} - Error: Could not save '{}'".format(c,cell_info['name'][i]))
+
+        # Create list of param converted dataframes per cell for concatenation. Append param to column names.
+        if p == 0:
+            df_param = df_conv.copy()
+            df_param.columns = ['{}{}'.format(col, '' if col in 'I' else '_{}'.format(param)) for col in df_param.columns]
+        else:
+            df_param = df_conv.copy().drop('I',axis=1).add_suffix('_'+param)
+
+        df_param_list.append(df_param)
+
+    # Save combined param data to single file
+    if len(param_output_cap) > 1:
+        df_param = pd.concat(df_param_list, axis=1)
+
+        c = save.single(df_param, output_folder, c,
+                        'params_{}.csv'.format(cell_info.loc[i]['name']),
+                        "{} - Saved combined conversion of '{}'".format(c,cell_info['name'][i]),
+                        "{} - Error: Could not save combined conversion of '{}'".format(c,cell_info['name'][i]))
+
+        c = save.single(df_param.drop('I',axis=1).groupby(['cycle']).sum(), output_folder, c,
+                        'params_cycle_{}.csv'.format(cell_info.loc[i]['name']),
+                        "{} - Saved per cycle combined conversion of '{}'".format(c,cell_info['name'][i]),
+                        "{} - Error: Could not save per cycle combined conversion of '{}'".format(c,cell_info['name'][i]))
+    else:
+        c = save.single(df_param.drop('I',axis=1).groupby(['cycle']).sum(), output_folder, c,
+                        'params_cycle_{}.csv'.format(cell_info.loc[i]['name']),
+                        "{} - Saved per cycle combined conversion of '{}'".format(c,cell_info['name'][i]),
+                        "{} - Error: Could not save per cycle combined conversion of '{}'".format(c,cell_info['name'][i]))
 
 ### List of useful variables ###
 # lst_df        -- full voltage profile data with capacity per cycle
