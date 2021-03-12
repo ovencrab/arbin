@@ -6,9 +6,8 @@ __pycache__/
 *.code-workspace
 .vscode/
 
-# Conda env
+# Folders
 env/
-Archive/
 
 # Jupyter checkpoints
 *-checkpoint.ipynb
