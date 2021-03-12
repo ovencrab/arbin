@@ -8,6 +8,7 @@ __pycache__/
 
 # Conda env
 env/
+Archive/
 
 # Jupyter checkpoints
 *-checkpoint.ipynb
