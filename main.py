@@ -28,18 +28,21 @@ col_rename = ['time','cycle','step','I','E','Qp','Qn']
 ### User options ###
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-folder_select = True
-text_paths = False # Uses text paths from cell_info rather than files in the folder
-use_filename = True
-cv_cut = 1.1 # (minimum ratio between CC current vs CV current)
-avg_calc = True
-avg_name = 'average_data'
+
+s_dict = {}
+s_dict['folder_select'] = True
+s_dict['text_paths'] = False # Uses text paths from cell_info rather than files in the folder
+s_dict['use_filenames'] = True
+s_dict['cv_cut'] = 1.1 # (minimum ratio between CC current vs CV current)
+s_dict['avg_calc'] = True
+s_dict['avg_name'] = 'average_data'
+s_dict['sv_indv'] = False # Save individual csv per conversion i.e. Cell 1 converted to mAh
+s_dict['sv_step'] = False # Save csv per conversion i.e. Cell 1 converted to mAh
+s_dict['sv_avg'] = True
+
+# Conversion settings - dynamic response to information in 'cell_info.csv'
 param_output_volt = ['mAh','mass','areal','volume'] # ['mAh','mass','areal','volume']
 param_output_cap = ['mAh','mass','areal','volume'] #['mAh','mass','areal','volume']
-
-save_indv = False # Save individual csv per conversion i.e. Cell 1 converted to mAh
-save_steps = False # Save csv per conversion i.e. Cell 1 converted to mAh
-save_average = True
 
 # Debug
 filepath_debug = True
@@ -85,7 +88,7 @@ def check_paths(c,cell_info):
     """
 
     if not 'data_paths' in cell_info.columns:
-        raise Exception("Error: 'text_paths' option is enabled without any data filepaths in 'cell_info.csv'")
+        raise Exception("Error: 's_dict['text_paths']' option is enabled without any data filepaths in 'cell_info.csv'")
 
     # Check for missing data filepaths in data_paths column
     empty_idx = cell_info[(cell_info['data_paths'].isnull())].index
@@ -112,7 +115,7 @@ def check_paths(c,cell_info):
 
     # Raise error if data_paths column is empty for every row
     if len(cell_info) == 0:
-        raise Exception("Error: 'text_paths' option is enabled without any data filepaths in 'cell_info.csv'")
+        raise Exception("Error: 's_dict['text_paths']' option is enabled without any data filepaths in 'cell_info.csv'")
 
     return c, data_paths, cell_info
 
@@ -193,12 +196,12 @@ root = Tk()
 root.attributes("-topmost", True)
 root.withdraw()  # stops root window from appearing
 
-if folder_select:
+if s_dict['folder_select']:
     raw_folder = askdirectory(parent=root, title="Choose data folder")
     raw_folder = Path(raw_folder)
     data_paths = list(raw_folder.glob('*.csv')) + list(raw_folder.glob('*.xlsx'))
 
-if not folder_select:
+if not s_dict['folder_select']:
     data_paths_temp = askopenfilenames(parent=root, title='Choose data files',filetypes=file_types)
     data_paths = [Path(i) for i in data_paths_temp]
     raw_folder = data_paths[0].parent
@@ -215,20 +218,20 @@ for index, fpath in enumerate(data_paths):
         del data_paths[index]
 
 # Import data paths from 'cell_info.csv' if desired
-if text_paths and not got_info:
-    raise Exception("Error: 'text_paths' option is enabled with missing cell_info file." +
-                    " Disable 'text_paths' option to select data files in a GUI" +
+if s_dict['text_paths'] and not got_info:
+    raise Exception("Error: 's_dict['text_paths']' option is enabled with missing cell_info file." +
+                    " Disable 's_dict['text_paths']' option to select data files in a GUI" +
                     " or create a cell_info.csv file containing data filepaths")
-elif text_paths and got_info:
+elif s_dict['text_paths'] and got_info:
     c, data_paths, cell_info = check_paths(c,cell_info)
 
-# If text_paths is false, sort data_paths to catch issues...
+# If s_dict['text_paths'] is false, sort data_paths to catch issues...
 # with ordering of mixed filetype data sets
-if not text_paths and got_info:
+if not s_dict['text_paths'] and got_info:
     data_paths = sort_paths(data_paths)
 
-# If text_paths is false and 'cell_info.csv' is missing, create cell_info df from file names
-if not text_paths and not got_info:
+# If s_dict['text_paths'] is false and 'cell_info.csv' is missing, create cell_info df from file names
+if not s_dict['text_paths'] and not got_info:
     cell_info = pd.DataFrame(columns=['name'])
     param_output_cap = ['mAh']
     got_info = False
@@ -241,7 +244,7 @@ if not len(data_paths) == len(cell_info):
                     "contains a row for each data file.")
 
 # Put data filepaths into cell_info dataframe
-if not text_paths:
+if not s_dict['text_paths']:
     cell_info['data_paths'] = data_paths
 
 if filepath_debug:
@@ -361,16 +364,16 @@ for fpath in data_paths:
     first = df.loc[cap_filt].groupby(['cycle', 'step'])['I'].first()
     last = df.loc[cap_filt].groupby(['cycle', 'step'])['I'].last()
     cv_filt = first/last
-    if len(cv_filt.index[cv_filt > cv_cut].tolist()) != 0:
-        df.loc[cv_filt.index[cv_filt > cv_cut].tolist(), 'step_type'] = 'posCV'
+    if len(cv_filt.index[cv_filt > s_dict['cv_cut']].tolist()) != 0:
+        df.loc[cv_filt.index[cv_filt > s_dict['cv_cut']].tolist(), 'step_type'] = 'posCV'
 
     # Labelling of constant voltage steps - negative current
     cap_filt = df_cap[df_cap['Qn'] > 0].index
     first = df.loc[cap_filt].groupby(['cycle', 'step'])['I'].first()
     last = df.loc[cap_filt].groupby(['cycle', 'step'])['I'].last()
     cv_filt = first/last
-    if len(cv_filt.index[cv_filt > cv_cut].tolist()) != 0:
-        df.loc[cv_filt.index[cv_filt > cv_cut].tolist(), 'step_type'] = 'negCV'
+    if len(cv_filt.index[cv_filt > s_dict['cv_cut']].tolist()) != 0:
+        df.loc[cv_filt.index[cv_filt > s_dict['cv_cut']].tolist(), 'step_type'] = 'negCV'
 
     # Make step_type an index for df
     df.set_index(['step_type'], inplace=True, append=True)
@@ -387,7 +390,7 @@ for fpath in data_paths:
     lst_df_cap.append(df_cap)
 
 # Calculate average data
-if avg_calc:
+if s_dict['avg_calc']:
     df_cap_temp = pd.concat(lst_df_cap)
     df_cap_avg = df_cap_temp.groupby(['cycle', 'step','step_type'])[['I','Qp','Qn']].mean()
     df_cap_std = df_cap_temp.groupby(['cycle', 'step','step_type'])[['Qp','Qn']].std()
@@ -395,7 +398,7 @@ if avg_calc:
     df_cap_avg = pd.concat([df_cap_avg, df_cap_std], axis=1)
 
     # Create average cell_info
-    d = {'name': avg_name}
+    d = {'name': s_dict['avg_name']}
     new_row = pd.Series(data=d, index=['name'])
     new_df = cell_info.mean().to_frame()
     cell_info_avg = pd.concat([new_row,new_df]).T
@@ -422,7 +425,7 @@ else:
     c=c+1
 
 # --------------------------- Averaged data ---------------------------
-if save_average:
+if s_dict['sv_avg']:
     print('--------------------- Average export ------------------')
 
     c=0
@@ -431,7 +434,7 @@ if save_average:
     for p,param in enumerate(param_output_cap):
         df_conv = converter(df_cap_avg,param,cell_info_avg.loc[0],'I')
 
-        if save_indv & save_average & save_steps:
+        if s_dict['sv_indv'] & s_dict['sv_avg'] & s_dict['sv_step']:
             c = save_csv(df_conv, output_folder, c,
                        'avg_{}_{}.csv'.format(param,cell_info_avg.loc[0]['name']),
                        "{} - Saved {} conversion of '{}'".format(c,param,cell_info_avg.loc[0]['name']),
@@ -459,7 +462,7 @@ if save_average:
                    "{} - Error: Could not save 'per cycle' combined conversion of '{}'".format(c,cell_info_avg.loc[0]['name']))
 
     # Group combined df by step and save
-    if save_steps:
+    if s_dict['sv_step']:
         c = save_csv(df_param, output_folder, c,
                    'avg_params_{}.csv'.format(cell_info_avg.loc[0]['name']),
                    "{} - Saved combined conversion of '{}'".format(c,cell_info_avg.loc[0]['name']),
@@ -467,7 +470,7 @@ if save_average:
 
 
 # --------------------------- 'per cell' data ---------------------------
-if save_average:
+if s_dict['sv_avg']:
     print("--------------------- Cell capacity export ------------")
 
 c=0
@@ -480,7 +483,7 @@ for i, df_cap in enumerate(lst_df_cap):
         df_conv = converter(df_cap,param,cell_info.loc[i],'I')
 
         # Save converted df to individual file
-        if save_indv & save_steps:
+        if s_dict['sv_indv'] & s_dict['sv_step']:
             c = save_csv(df_conv, output_folder, c,
                        '{}_{}.csv'.format(param,cell_info.loc[i]['name']),
                        "{} - Saved {} conversion of '{}'".format(c,param,cell_info['name'][i]),
@@ -508,7 +511,7 @@ for i, df_cap in enumerate(lst_df_cap):
                "{} - Error: Could not save per cycle combined conversion of '{}'".format(c,cell_info['name'][i]))
 
     # Group combined df by step and save
-    if save_steps:
+    if s_dict['sv_step']:
         c = save_csv(df_param, output_folder, c,
                    'params_{}.csv'.format(cell_info.loc[i]['name']),
                    "{} - Saved combined conversion of '{}'".format(c,cell_info['name'][i]),
@@ -527,7 +530,7 @@ for i, df in enumerate(lst_df):
         df_conv = converter(df,param,cell_info.loc[i],drop_cols)
 
         # Save converted df to individual file
-        if save_indv:
+        if s_dict['sv_indv']:
             c = save_csv(df_conv, output_folder, c,
                        '{}_{}_{}.csv'.format('volt',param,cell_info.loc[i]['name']),
                        "{} - Saved {} conversion of '{}'".format(c,param,cell_info['name'][i]),
