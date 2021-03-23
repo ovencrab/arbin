@@ -11,6 +11,7 @@ import re
 from math import pi
 
 ### Import debugging ###
+import os
 import sys
 import time
 
@@ -18,7 +19,7 @@ import time
 idx=pd.IndexSlice
 
 ### File processing ###
-file_types = [('Arbin & cell_info files', ['*.csv','*.xlsx','*.xls'])]
+file_types = [('Arbin & cell_info files', ['*.csv','*.xlsx'])]
 raw_cols = ['Test_Time(s)','Cycle_Index','Step_Index','Current(A)',
             'Voltage(V)','Charge_Capacity(Ah)','Discharge_Capacity(Ah)']
 col_rename = ['time','cycle','step','I','E','Qp','Qn']
@@ -32,7 +33,7 @@ text_paths = False # Uses text paths from cell_info rather than files in the fol
 use_filename = True
 cv_cut = 1.1 # (minimum ratio between CC current vs CV current)
 avg_calc = True
-avg_name = 'JE_210128_WP0_form'
+avg_name = 'average_data'
 param_output_volt = ['mAh','mass','areal','volume'] # ['mAh','mass','areal','volume']
 param_output_cap = ['mAh','mass','areal','volume'] #['mAh','mass','areal','volume']
 
@@ -254,7 +255,9 @@ if got_info:
     print_info = cell_info.loc[:, cell_info.columns != 'data_paths']
     print(print_info)
 else:
-    print("0 - 'cell_info.csv' not found, proceeding without data conversion.")
+    print("0 - 'cell_info.csv' not found, proceeding with only mAh conversion.")
+    param_output_volt = ['mAh'] # ['mAh','mass','areal','volume']
+    param_output_cap = ['mAh'] #['mAh','mass','areal','volume']
 
 print('--------------------- Information checks ---------------')
 
@@ -308,7 +311,6 @@ if c == 0:
 
 # --------------------------- Data filtering ---------------------------
 print('--------------------- Data filtering -------------------')
-
 
 lst_df = []
 lst_df_cap = []
