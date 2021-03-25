@@ -10,6 +10,7 @@ __pycache__/
 env/
 build/
 dist/
+.venv/
 
 
 # Jupyter checkpoints
