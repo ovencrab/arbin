@@ -1,7 +1,7 @@
 ### Import packages ###
 from pathlib import Path
-from tkinter import Tk
-from tkinter.filedialog import askdirectory, askopenfilenames
+# from tkinter import Tk
+# from tkinter.filedialog import askdirectory, askopenfilenames
 import numpy as np
 import pandas as pd
 import natsort
@@ -11,9 +11,9 @@ import re
 from math import pi
 
 ### Import debugging ###
-import os
+#import os
 import sys
-import time
+#import time
 
 # ### Manual run ###
 # manual_run = True

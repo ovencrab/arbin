@@ -14,8 +14,8 @@
    <string>Arbin data processor v0.1</string>
   </property>
   <property name="windowIcon">
-   <iconset>
-    <normaloff>logo_alpha.png</normaloff>logo_alpha.png</iconset>
+   <iconset resource="resources.qrc">
+    <normaloff>:/icons/logo_alpha.png</normaloff>:/icons/logo_alpha.png</iconset>
   </property>
   <widget class="QWidget" name="centralwidget">
    <widget class="QFrame" name="frame">
@@ -323,6 +323,8 @@
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
  </widget>
- <resources/>
+ <resources>
+  <include location="resources.qrc"/>
+ </resources>
  <connections/>
 </ui>

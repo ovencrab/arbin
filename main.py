@@ -4,7 +4,8 @@ from pathlib import Path
 from PyQt5 import QtWidgets as qtw
 from PyQt5 import QtCore as qtc
 from PyQt5 import QtGui
-from PyQt5.uic import loadUi
+from PyQt5 import uic
+import resources
 
 ### Import *.py functions ###
 from arbin import process
@@ -20,8 +21,12 @@ class Stream(qtc.QObject):
 class MainWindow(qtw.QMainWindow):
     def __init__(self):
         super(MainWindow,self).__init__()
-        loadUi("mainGUI.ui",self)
-
+        fileh = qtc.QFile(':/ui/mainGUI.ui')
+        fileh.open(qtc.QFile.ReadOnly)
+        uic.loadUi(fileh, self)
+        fileh.close()
+        
+        
         # Create settings dictionary
         self.s_dict = {}
 
