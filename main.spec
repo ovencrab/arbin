@@ -3,7 +3,7 @@
 block_cipher = None
 
 
-a = Analysis(['main.py'],
+a = Analysis(['arbin_main.py'],
              pathex=['C:\\Users\\jack_\\GitHub\\ovencrab\\arbin'],
              binaries=[],
              datas=[],
