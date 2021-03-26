@@ -8,7 +8,7 @@ from PyQt5 import uic
 import resources
 
 ### Import *.py functions ###
-from arbin import process
+from arbin_scripts import process
 
 # Stream class allows writing of sys.stdout to QTextEdit field
 class Stream(qtc.QObject):

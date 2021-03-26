@@ -16,7 +16,7 @@ import sys
 import time
 
 ### Import *.py files ###
-from arbin import process
+from arbin_scripts import process
 
 ### Fixed variables ###
 file_types = [('Arbin & cell_info files', ['*.csv','*.xlsx'])]
