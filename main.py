@@ -25,8 +25,8 @@ class MainWindow(qtw.QMainWindow):
         fileh.open(qtc.QFile.ReadOnly)
         uic.loadUi(fileh, self)
         fileh.close()
-        
-        
+
+
         # Create settings dictionary
         self.s_dict = {}
 
@@ -70,24 +70,32 @@ class MainWindow(qtw.QMainWindow):
 
     # Allows user to select files by dialog
     def browse_files(self):
+        self.log.clear()
         f_dlg = qtw.QFileDialog()
         f_dlg.setFileMode(qtw.QFileDialog.ExistingFiles)
         filter = "Arbin data (*.csv *.xlsx)"
         self.f_paths_temp = f_dlg.getOpenFileNames(self, "Select files", "C\\Desktop", filter)[0]
-        self.s_dict['f_paths'] = [Path(i) for i in self.f_paths_temp]
-        self.s_dict['raw_dir'] = self.s_dict['f_paths'][0].parent
-        self.s_dict['folder_select'] = False
-        self.show_selection(self.s_dict['f_paths'])
+        if self.f_paths_temp:
+            self.s_dict['f_paths'] = [Path(i) for i in self.f_paths_temp]
+            self.s_dict['raw_dir'] = self.s_dict['f_paths'][0].parent
+            self.s_dict['folder_select'] = False
+            self.show_selection(self.s_dict['f_paths'])
+        else:
+            print('No files selected')
 
     # Allows user to select a folder by dialog
     def browse_folders(self):
+        self.log.clear()
         f_dlg = qtw.QFileDialog()
         f_dlg.setFileMode(qtw.QFileDialog.ExistingFiles)
         self.s_dict['raw_dir'] = f_dlg.getExistingDirectory(self, "Select folder", "C\\Desktop")
-        self.s_dict['raw_dir'] = Path(self.s_dict['raw_dir'])
-        self.s_dict['f_paths'] = list(self.s_dict['raw_dir'].glob('*.csv')) + list(self.s_dict['raw_dir'].glob('*.xlsx'))
-        self.s_dict['folder_select'] = True
-        self.show_selection(self.s_dict['f_paths'])
+        if self.s_dict['raw_dir']:
+            self.s_dict['raw_dir'] = Path(self.s_dict['raw_dir'])
+            self.s_dict['f_paths'] = list(self.s_dict['raw_dir'].glob('*.csv')) + list(self.s_dict['raw_dir'].glob('*.xlsx'))
+            self.s_dict['folder_select'] = True
+            self.show_selection(self.s_dict['f_paths'])
+        else:
+            print('No folder selected')
 
     # Checks checkbox state and adds key (lst_dict_names) - value (bool) pair to settings dictionary
     def check_state(self,b,str):
@@ -126,7 +134,7 @@ class MainWindow(qtw.QMainWindow):
         print_dict = {k: v for k, v in self.s_dict.items() if k not in {'f_paths','raw_dir'}}
         for key in print_dict:
             print("{}: {}".format(key,print_dict[key]))
-        
+
         print(" ")
         process(self.s_dict)
 
