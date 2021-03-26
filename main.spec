@@ -4,7 +4,7 @@ block_cipher = None
 
 
 a = Analysis(['main.py'],
-             pathex=['C:\\Users\\Jack\\PycharmProjects\\arbin'],
+             pathex=['C:\\Users\\jack_\\GitHub\\ovencrab\\arbin'],
              binaries=[],
              datas=[],
              hiddenimports=[],
@@ -26,7 +26,7 @@ exe = EXE(pyz,
           bootloader_ignore_signals=False,
           strip=False,
           upx=True,
-          console=False )
+          console=False , icon='logo_alpha.ico')
 coll = COLLECT(exe,
                a.binaries,
                a.zipfiles,

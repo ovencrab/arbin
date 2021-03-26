@@ -15,7 +15,7 @@
   </property>
   <property name="windowIcon">
    <iconset resource="resources.qrc">
-    <normaloff>:/icons/logo_alpha.png</normaloff>:/icons/logo_alpha.png</iconset>
+    <normaloff>:/icons/logo_alpha.ico</normaloff>:/icons/logo_alpha.ico</iconset>
   </property>
   <widget class="QWidget" name="centralwidget">
    <widget class="QFrame" name="frame">

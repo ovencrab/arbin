@@ -141,6 +141,7 @@ class MainWindow(qtw.QMainWindow):
 
 if __name__ == "__main__":
     app = qtw.QApplication([])
+    app.setWindowIcon(QtGui.QIcon(':/logo_alpha.ico'))
     window = MainWindow()
     window.show()
     sys.exit(app.exec_())

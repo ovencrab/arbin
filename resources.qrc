@@ -3,6 +3,6 @@
     <file>mainGUI.ui</file>
   </qresource>
   <qresource prefix="icons">
-    <file>logo_alpha.png</file>
+    <file>logo_alpha.ico</file>
   </qresource>
 </RCC>
