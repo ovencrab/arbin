@@ -1,7 +1,5 @@
 ### Import packages ###
 from pathlib import Path
-# from tkinter import Tk
-# from tkinter.filedialog import askdirectory, askopenfilenames
 import numpy as np
 import pandas as pd
 import natsort
@@ -13,10 +11,11 @@ from math import pi
 ### Import debugging ###
 #import os
 import sys
-#import time
+import time
 
-# ### Manual run ###
-# manual_run = True
+### Manual debug ###
+from tkinter import Tk
+from tkinter.filedialog import askdirectory, askopenfilenames
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 ### Functions ###
@@ -155,6 +154,36 @@ def save_csv(df, output_folder, c, str_name, str_pass, str_fail) :
     return c
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+### Non-gui file import ### (Uncomment and comment def process(s_dict): below)
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+
+# s_dict = {}
+# s_dict['folder_select'] = True
+# s_dict['text_paths'] = False # Uses text paths from cell_info rather than files in the folder
+# s_dict['use_filenames'] = True
+# s_dict['cv_cut'] = 1.1 # (minimum ratio between CC current vs CV current)
+# s_dict['avg_calc'] = True
+# s_dict['avg_name'] = 'average_data'
+# s_dict['sv_indv'] = False # Save individual csv per conversion i.e. Cell 1 converted to mAh
+# s_dict['sv_step'] = False # Save csv per conversion i.e. Cell 1 converted to mAh
+# s_dict['sv_avg'] = True
+
+#     # Open dialog to select folder, search folder for csv and xlsx files, name output path
+# root = Tk()
+# root.attributes("-topmost", True)
+# root.withdraw()  # stops root window from appearing
+
+# if s_dict['folder_select']:
+#     s_dict['raw_dir'] = askdirectory(parent=root, title="Choose data folder")
+#     s_dict['raw_dir'] = Path(s_dict['raw_dir'])
+#     s_dict['f_paths'] = list(s_dict['raw_dir'].glob('*.csv')) + list(s_dict['raw_dir'].glob('*.xlsx'))
+
+# if not s_dict['folder_select']:
+#     f_paths_temp = askopenfilenames(parent=root, title='Choose data files',filetypes=file_types)
+#     s_dict['f_paths'] = [Path(i) for i in f_paths_temp]
+#     s_dict['raw_dir'] = s_dict['f_paths'][0].parent
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 ### Script ###
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
@@ -163,7 +192,7 @@ def process(s_dict):
     print(' ')
 
     c=0
-    
+
     ### File processing ###
     raw_cols = ['Test_Time(s)','Cycle_Index','Step_Index','Current(A)',
                 'Voltage(V)','Charge_Capacity(Ah)','Discharge_Capacity(Ah)']
@@ -291,7 +320,7 @@ def process(s_dict):
     lst_df_cap = []
     c = 0
 
-    for fpath in data_paths:
+    for i, fpath in enumerate(data_paths):
         # Read raw data into dataframe, rename columns and set cycle and step as index
         if fpath.suffix == '.xlsx':
             xls = pd.ExcelFile(fpath,engine='openpyxl')
@@ -307,23 +336,19 @@ def process(s_dict):
 
         df.columns = col_rename
         df.set_index(['cycle','step'],inplace=True)
+        df.sort_index(inplace=True)
 
         # Print data
         print('{} - Returned dataframe: {}'.format(c, df.shape))
         c = c+1
 
-        # List of df multindex
-        df_idx = df.index.unique()
-
         # Find last capacity value in each step
-        qp_filt = df.groupby(['cycle', 'step'])['Qp'].first()
-        qn_filt = df.groupby(['cycle', 'step'])['Qn'].first()
+        q_filt = df.groupby(['cycle', 'step'])[['Qp','Qn']].first()
 
         # Subtract step(n-1) capacity from step(n) capacity starting with last step
-        for nidx, midx in reversed(list(enumerate(df_idx))):
-            df.loc[df_idx[nidx]]['Qp'] = df.loc[df_idx[nidx]]['Qp'] - list(qp_filt)[nidx]
-            df.loc[df_idx[nidx]]['Qn'] = df.loc[df_idx[nidx]]['Qn'] - list(qn_filt)[nidx]
+        df[['Qp','Qn']] = df[['Qp','Qn']].sub(q_filt)
 
+        # Group by last capacity value per step
         df_cap = df.groupby(['cycle', 'step'])[['I','Qp','Qn']].last()
 
         # Labelling of constant current steps
@@ -352,11 +377,6 @@ def process(s_dict):
 
         # Update df_cap with new step_type index
         df_cap = df.groupby(['cycle', 'step','step_type'])[['I','Qp','Qn']].last()
-        #print(df_cap.tail())
-
-        # Create data_frame of total capacity per cycle
-        #df_cap_total = df_cap.groupby(['cycle'])['Qp','Qn'].sum()
-        #print(df_cap_total.head())
 
         lst_df.append(df)
         lst_df_cap.append(df_cap)
@@ -397,7 +417,7 @@ def process(s_dict):
         c=c+1
 
     # --------------------------- Averaged data ---------------------------
-    if s_dict['sv_avg']:
+    if s_dict['sv_avg'] and len(data_paths) > 1:
         print('--------------------- Average export ------------------')
 
         c=0
@@ -428,7 +448,9 @@ def process(s_dict):
             df_param = df_param_list[0]
 
         # Group combined df rows by cycle index and save
-        c = save_csv(df_param.drop('I',axis=1).groupby(['cycle']).sum(), output_folder, c,
+        df_g = df_param.drop('I',axis=1).groupby(['cycle']).sum()
+        df_g['couEff'] = (1-(df_g['Qp_mAh'] - df_g['Qn_mAh'])/df_g['Qp_mAh'])*100
+        c = save_csv(df_g, output_folder, c,
                     'avg_params_cycle_{}.csv'.format(cell_info_avg.loc[0]['name']),
                     "{} - Saved 'per cycle' combined conversion of '{}'".format(c,cell_info_avg.loc[0]['name']),
                     "{} - Error: Could not save 'per cycle' combined conversion of '{}'".format(c,cell_info_avg.loc[0]['name']))
@@ -477,7 +499,9 @@ def process(s_dict):
             df_param = df_param_list[0]
 
         # Group combined df rows by cycle index and save
-        c = save_csv(df_param.drop('I',axis=1).groupby(['cycle']).sum(), output_folder, c,
+        df_g = df_param.drop('I',axis=1).groupby(['cycle']).sum()
+        df_g['couEff'] = (1-(df_g['Qp_mAh'] - df_g['Qn_mAh'])/df_g['Qp_mAh'])*100
+        c = save_csv(df_g, output_folder, c,
                 'params_cycle_{}.csv'.format(cell_info.loc[i]['name']),
                 "{} - Saved per cycle combined conversion of '{}'".format(c,cell_info['name'][i]),
                 "{} - Error: Could not save per cycle combined conversion of '{}'".format(c,cell_info['name'][i]))
@@ -528,39 +552,6 @@ def process(s_dict):
                     '{}_params_{}.csv'.format('volt',cell_info.loc[i]['name']),
                     "{} - Saved combined conversion of '{}'".format(c,cell_info['name'][i]),
                     "{} - Error: Could not save combined conversion of '{}'".format(c,cell_info['name'][i]))
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
-### Non-gui file import ###
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
-
-# if manual_run:
-#     s_dict = {}
-#     s_dict['folder_select'] = True
-#     s_dict['text_paths'] = False # Uses text paths from cell_info rather than files in the folder
-#     s_dict['use_filenames'] = True
-#     s_dict['cv_cut'] = 1.1 # (minimum ratio between CC current vs CV current)
-#     s_dict['avg_calc'] = True
-#     s_dict['avg_name'] = 'average_data'
-#     s_dict['sv_indv'] = False # Save individual csv per conversion i.e. Cell 1 converted to mAh
-#     s_dict['sv_step'] = False # Save csv per conversion i.e. Cell 1 converted to mAh
-#     s_dict['sv_avg'] = True
-
-#     # Open dialog to select folder, search folder for csv and xlsx files, name output path
-#     root = Tk()
-#     root.attributes("-topmost", True)
-#     root.withdraw()  # stops root window from appearing
-
-#     if s_dict['folder_select']:
-#         s_dict['raw_dir'] = askdirectory(parent=root, title="Choose data folder")
-#         s_dict['raw_dir'] = Path(s_dict['raw_dir'])
-#         s_dict['f_paths'] = list(s_dict['raw_dir'].glob('*.csv')) + list(s_dict['raw_dir'].glob('*.xlsx'))
-
-#     if not s_dict['folder_select']:
-#         f_paths_temp = askopenfilenames(parent=root, title='Choose data files',filetypes=file_types)
-#         s_dict['f_paths'] = [Path(i) for i in f_paths_temp]
-#         s_dict['raw_dir'] = s_dict['f_paths'][0].parent
-
-#     arbin_process(s_dict)
 
 ### List of useful variables ###
 # lst_df        -- full voltage profile data
