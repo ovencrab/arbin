@@ -3,6 +3,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import natsort
+import yaml
 import re
 
 ### Temp packages ###
@@ -157,6 +158,7 @@ def save_csv(df, output_folder, c, str_name, str_pass, str_fail) :
 ### Non-gui file import ### (Uncomment and comment def process(s_dict): below)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
+# # Dictionary of processing settings
 # s_dict = {}
 # s_dict['folder_select'] = True
 # s_dict['text_paths'] = False # Uses text paths from cell_info rather than files in the folder
@@ -168,7 +170,7 @@ def save_csv(df, output_folder, c, str_name, str_pass, str_fail) :
 # s_dict['sv_step'] = False # Save csv per conversion i.e. Cell 1 converted to mAh
 # s_dict['sv_avg'] = True
 
-#     # Open dialog to select folder, search folder for csv and xlsx files, name output path
+# # Open dialog to select folder, search folder for csv and xlsx files, name output path
 # root = Tk()
 # root.attributes("-topmost", True)
 # root.withdraw()  # stops root window from appearing

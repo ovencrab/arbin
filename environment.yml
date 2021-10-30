@@ -1,0 +1,14 @@
+name: arbin_env
+channels:
+  - conda-forge
+  - defaults
+
+dependencies:
+  - python=3.9.2
+  - pip
+  # Core scientific python
+  - numpy
+  - pandas
+  # Other
+  - pyyaml
+  - natsort

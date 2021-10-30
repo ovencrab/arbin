@@ -1,0 +1,9 @@
+folder_select : True  # Select files by folder
+text_paths : False    # Use text filepaths from cell_info
+use_filenames : True  # Name cells based on filenames
+cv_cut : 1.1          # Identifies CV step by ratio of start current to end current
+avg_calc : True       # Calculate average data
+avg_name : 'average_data'
+sv_indv : False       # Save individual csv per conversion i.e. Cell 1 converted to mAh
+sv_step : False       # Save csv per conversion i.e. Cell 1 converted to mAh
+sv_avg : True         # Save average data
