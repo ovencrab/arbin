@@ -14,7 +14,9 @@ This code automatically manipulates and converts raw data from arbin cyclers to 
 git clone https://github.com/ovencrab/arbin
 ~~~
 
-2. Run *arbin_main.py* using Python 3.9.2 for the GUI version of Arbin Data Processor, or *arbin_manual.py* for the terminal version.
+2. Make sure your python environment has the required packages installed (*requirements.txt* is included for virtualenv and *environment.yml* is included for conda)
+
+3. Run *arbin_main.py* using Python 3.9.2 for the GUI version of Arbin Data Processor, or *arbin_manual.py* for the terminal version.
 
 ## Usage
 
