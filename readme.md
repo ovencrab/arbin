@@ -24,7 +24,7 @@ Arbin Data Processor can be used in several workflows. Data files for processing
 
 ### Additional calculations
 
-To convert the capacity data to $mAh/g$, $mAh/cm^2$ and $mAh/cm^3$, an extra *.csv* file can be user generated and named *cell_info.csv* in the same folder as the arbin data files. If the user chooses to use the *'Select files...'* option, the *cell_info.csv* should be selected in addition to the data files.
+To convert the capacity data to *mAh/g*, *mAh/cm<sup>2</sup>* and *mAh/cm<sup>3</sup>*, an extra *.csv* file can be user generated and named *cell_info.csv* in the same folder as the arbin data files. If the user chooses to use the *'Select files...'* option, the *cell_info.csv* should be selected in addition to the data files.
 
 It may include the columns as shown in the table below:
 
@@ -34,9 +34,9 @@ It may include the columns as shown in the table below:
 | cell_2 | 30.2 | 82        | 1.48     |
 | cell_2 | 30.2 | 84        | 1.48     |
 
-Where the units of mass are in $mg$, thickness in $\mu m$ and diameter in $cm$.
+Where the units of mass are in *mg*, thickness in *&mu;m* and diameter in *cm*.
 
-Note: only diameter is supported currently.
+Note: only diameter rather than area is supported currently.
 
 ## Excel Add-In
 
