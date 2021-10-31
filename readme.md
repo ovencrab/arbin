@@ -8,7 +8,7 @@ This code automatically manipulates and converts raw data from arbin cyclers to 
 
 ## Installation
 
-1. Clone the repository using git
+1. Clone the repository using git, or just download as a zip.
 
 ~~~
 git clone https://github.com/ovencrab/arbin
