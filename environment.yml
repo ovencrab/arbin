@@ -12,3 +12,5 @@ dependencies:
   # Other
   - pyyaml
   - natsort
+  # UI
+  - pyqt

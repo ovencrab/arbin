@@ -6,13 +6,6 @@ __pycache__/
 *.code-workspace
 .vscode/
 
-# Folders
-env/
-build/
-dist/
-.venv/
-
-
 # Jupyter checkpoints
 *-checkpoint.ipynb
 debug.log
