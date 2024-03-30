@@ -9,3 +9,7 @@ __pycache__/
 # Jupyter checkpoints
 *-checkpoint.ipynb
 debug.log
+
+# Output files
+test_data/
+.DS_Store

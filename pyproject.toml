@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "arbin"
+version = "0.1.0"
+description = ""
+authors = ["ovencrab <38688394+ovencrab@users.noreply.github.com>"]
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.9.6"
+pandas = "^2.2.1"
+numpy = "^1.26.4"
+pyyaml = "^6.0.1"
+natsort = "^8.4.0"
+pyqt5 = "^5.15.10"
+matplotlib = "^3.8.3"
+seaborn = "^0.13.2"
+ipykernel = "^6.29.4"
+
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
